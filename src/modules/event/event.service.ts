@@ -31,8 +31,8 @@ export class EventService {
     return this.prisma.event.findFirst({ where: { id } });
   }
 
-  update(id: number, updateEvent: EventDto) {
-    const eventExists = this.prisma.event.findUnique({
+  async update(id: number, updateEvent: EventDto) {
+    const eventExists = await this.prisma.event.findUnique({
       where: {
         id: +id,
       },
@@ -42,20 +42,23 @@ export class EventService {
       throw new NotFoundException('Event does not exists!');
     }
 
-    try {
-      this.prisma.event.update({
+    updateEvent.endDate = new Date(updateEvent.endDate);
+    updateEvent.startDate = new Date(updateEvent.startDate);
+
+    await this.prisma.event
+      .update({
         data: updateEvent,
         where: {
           id: +id,
         },
+      })
+      .catch(() => {
+        throw new InternalServerErrorException();
       });
-    } catch {
-      throw new InternalServerErrorException();
-    }
   }
 
-  remove(id: number) {
-    const eventExists = this.prisma.event.findUnique({
+  async remove(id: number) {
+    const eventExists = await this.prisma.event.findUnique({
       where: {
         id: +id,
       },
@@ -65,10 +68,8 @@ export class EventService {
       throw new NotFoundException('Event does not exists!');
     }
 
-    try {
-      this.prisma.event.delete({ where: { id: +id } });
-    } catch {
+    await this.prisma.event.delete({ where: { id: +id } }).catch(() => {
       throw new InternalServerErrorException();
-    }
+    });
   }
 }
