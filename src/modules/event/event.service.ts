@@ -10,25 +10,61 @@ import { EventDto } from './event.dto';
 export class EventService {
   constructor(private prisma: PrismaService) {}
 
-  create(data: EventDto) {
+  async createRelations(usersIds: number[], idEvent: number) {
+    await this.prisma.eventOnUsers.createMany({
+      data: usersIds.map((id: number) => {
+        return { userId: id, eventId: idEvent };
+      }),
+    });
+  }
+
+  async create(data: EventDto) {
     try {
       data.endDate = new Date(data.endDate);
       data.startDate = new Date(data.startDate);
 
-      this.prisma.event.create({
-        data,
-      });
+      await this.prisma.event
+        .create({
+          data: {
+            endDate: data.endDate,
+            startDate: data.startDate,
+            name: data.name,
+            price: data.price,
+          },
+        })
+        .then((event) => {
+          if (data.users) {
+            this.createRelations(data.users, event.id);
+          }
+        });
     } catch {
       throw new InternalServerErrorException();
     }
   }
 
-  findAll() {
-    return this.prisma.event.findMany();
+  async findAll() {
+    return await this.prisma.event.findMany({
+      include: {
+        users: {
+          select: {
+            user: true,
+          },
+        },
+      },
+    });
   }
 
   findOne(id: number) {
-    return this.prisma.event.findFirst({ where: { id } });
+    return this.prisma.event.findFirst({
+      where: { id },
+      include: {
+        users: {
+          select: {
+            user: true,
+          },
+        },
+      },
+    });
   }
 
   async update(id: number, updateEvent: EventDto) {
@@ -47,10 +83,27 @@ export class EventService {
 
     await this.prisma.event
       .update({
-        data: updateEvent,
+        data: {
+          endDate: updateEvent.endDate,
+          startDate: updateEvent.startDate,
+          name: updateEvent.name,
+          price: updateEvent.price,
+        },
         where: {
           id: +id,
         },
+        include: {
+          users: {
+            select: {
+              user: true,
+            },
+          },
+        },
+      })
+      .then(() => {
+        if (updateEvent.users) {
+          this.createRelations(updateEvent.users, id);
+        }
       })
       .catch(() => {
         throw new InternalServerErrorException();

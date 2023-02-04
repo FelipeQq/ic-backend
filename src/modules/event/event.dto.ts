@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsInt, IsString } from 'class-validator';
-
 export class EventDto {
   @ApiProperty({
     example: 'Retiro 2023',
@@ -22,9 +21,15 @@ export class EventDto {
   endDate: Date;
 
   @ApiProperty({
-    example: '200',
+    example: 200,
     description: 'Preco do evento',
   })
   @IsInt()
   price: number;
+
+  @ApiProperty({
+    example: [1, 6],
+    description: 'ids dos usuarios',
+  })
+  users?: number[];
 }
