@@ -11,11 +11,21 @@ export class EventService {
   constructor(private prisma: PrismaService) {}
 
   async createRelations(usersIds: number[], idEvent: number) {
-    await this.prisma.eventOnUsers.createMany({
-      data: usersIds.map((id: number) => {
-        return { userId: id, eventId: idEvent };
-      }),
+    const existRelation = await this.prisma.eventOnUsers.findMany({
+      where: { userId: { in: usersIds }, eventId: idEvent },
     });
+
+    const getUsersId = existRelation.map((e) => e.userId);
+
+    const filterIds = usersIds.filter((id) => !getUsersId.includes(id));
+
+    if (filterIds.length > 0) {
+      await this.prisma.eventOnUsers.createMany({
+        data: filterIds.map((id: number) => {
+          return { userId: id, eventId: idEvent };
+        }),
+      });
+    }
   }
 
   async create(data: EventDto) {
