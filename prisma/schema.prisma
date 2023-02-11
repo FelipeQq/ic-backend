@@ -25,6 +25,7 @@ model User {
   updateAt    DateTime  @updatedAt 
 
   events EventOnUsers[]
+  bedrooms BedroomsOnUsers[]
 
   @@map("users")
 }
@@ -41,6 +42,8 @@ model Event {
 
   users EventOnUsers[]
 
+  bedrooms Bedrooms[]
+
   @@map("events")
 }
 
@@ -51,4 +54,25 @@ model EventOnUsers {
   eventId     Int // relation scalar field (used in the `@relation` attribute above)
 
   @@id([userId, eventId])
+}
+
+model Bedrooms {
+  id        Int     @default(autoincrement()) @id
+  note      String?
+
+  event     Event @relation(fields: [eventId], references: [id])
+  eventId   Int
+
+  users BedroomsOnUsers[]
+
+  @@map("bedrooms")
+}
+
+model BedroomsOnUsers {
+  user           User     @relation(fields: [userId], references: [id])
+  userId         Int // relation scalar field (used in the `@relation` attribute above)
+  bedrooms       Bedrooms @relation(fields: [bedroomsId], references: [id])
+  bedroomsId     Int // relation scalar field (used in the `@relation` attribute above)
+
+  @@id([userId, bedroomsId])
 }
