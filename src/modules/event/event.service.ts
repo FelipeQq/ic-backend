@@ -64,8 +64,8 @@ export class EventService {
     });
   }
 
-  findOne(id: number) {
-    return this.prisma.event.findFirst({
+  async findOne(id: number) {
+    return await this.prisma.event.findFirst({
       where: { id },
       include: {
         users: {

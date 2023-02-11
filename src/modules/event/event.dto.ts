@@ -28,7 +28,7 @@ export class EventDto {
   price: number;
 
   @ApiProperty({
-    example: [1, 6],
+    example: [1, 2],
     description: 'ids dos usuarios',
   })
   users?: number[];
