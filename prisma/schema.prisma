@@ -11,57 +11,59 @@ datasource db {
 }
 
 model User {
-  id          Int     @default(autoincrement()) @id
-  email       String  @unique
-  fullName    String
-  cpf         String
-  birthday    DateTime
-  cellphone   String
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  fullName  String
+  cpf       String
+  birthday  DateTime
+  cellphone String
 
-  religion    String?
-  notes       String?
+  religion String?
+  notes    String?
 
-  createdAt   DateTime  @default(now())
-  updateAt    DateTime  @updatedAt 
+  createdAt DateTime @default(now())
+  updateAt  DateTime @updatedAt
 
-  events EventOnUsers[]
-  bedrooms BedroomsOnUsers[]
+  events      EventOnUsers[]
+  bedrooms    BedroomsOnUsers[]
+  TeamOnUsers TeamOnUsers[]
 
   @@map("users")
 }
 
 model Event {
-  id          Int     @default(autoincrement()) @id
-  name        String
-  startDate   DateTime
-  endDate     DateTime
-  price       Float
+  id        Int      @id @default(autoincrement())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  price     Float
 
-  createdAt   DateTime  @default(now())
-  updateAt    DateTime  @updatedAt 
+  createdAt DateTime @default(now())
+  updateAt  DateTime @updatedAt
 
   users EventOnUsers[]
 
   bedrooms Bedrooms[]
+  Team     Team[]
 
   @@map("events")
 }
 
 model EventOnUsers {
-  user        User     @relation(fields: [userId], references: [id])
-  userId      Int // relation scalar field (used in the `@relation` attribute above)
-  event       Event @relation(fields: [eventId], references: [id])
-  eventId     Int // relation scalar field (used in the `@relation` attribute above)
+  user    User  @relation(fields: [userId], references: [id])
+  userId  Int // relation scalar field (used in the `@relation` attribute above)
+  event   Event @relation(fields: [eventId], references: [id])
+  eventId Int // relation scalar field (used in the `@relation` attribute above)
 
   @@id([userId, eventId])
 }
 
 model Bedrooms {
-  id        Int     @default(autoincrement()) @id
-  note      String?
+  id   Int     @id @default(autoincrement())
+  note String?
 
-  event     Event @relation(fields: [eventId], references: [id])
-  eventId   Int
+  event   Event @relation(fields: [eventId], references: [id])
+  eventId Int
 
   users BedroomsOnUsers[]
 
@@ -69,10 +71,31 @@ model Bedrooms {
 }
 
 model BedroomsOnUsers {
-  user           User     @relation(fields: [userId], references: [id])
-  userId         Int // relation scalar field (used in the `@relation` attribute above)
-  bedrooms       Bedrooms @relation(fields: [bedroomsId], references: [id])
-  bedroomsId     Int // relation scalar field (used in the `@relation` attribute above)
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int // relation scalar field (used in the `@relation` attribute above)
+  bedrooms   Bedrooms @relation(fields: [bedroomsId], references: [id])
+  bedroomsId Int // relation scalar field (used in the `@relation` attribute above)
 
   @@id([userId, bedroomsId])
+}
+
+model Team {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  event   Event @relation(fields: [eventId], references: [id])
+  eventId Int
+
+  users TeamOnUsers[]
+
+  @@map("teams")
+}
+
+model TeamOnUsers {
+  user   User @relation(fields: [userId], references: [id])
+  userId Int // relation scalar field (used in the `@relation` attribute above)
+  team   Team @relation(fields: [teamId], references: [id])
+  teamId Int // relation scalar field (used in the `@relation` attribute above)
+
+  @@id([userId, teamId])
 }
