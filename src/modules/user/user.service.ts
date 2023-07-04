@@ -33,6 +33,13 @@ export class UserService {
     }
   }
 
+  async setProfilePhoto(id: number, photoUrl: string): Promise<UserDTO> {
+    return this.prisma.user.update({
+      where: { id: +id },
+      data: { profilePhotoUrl: photoUrl },
+    });
+  }
+
   async findAll() {
     return this.prisma.user.findMany();
   }

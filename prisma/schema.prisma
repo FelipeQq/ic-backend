@@ -11,15 +11,26 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  fullName  String
-  cpf       String
-  birthday  DateTime
-  cellphone String
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  fullName     String
+  cpf          String
+  birthday     DateTime
+  cellphone    String
+  worker       Boolean
+  diabetes     Boolean
+  hypertensive Boolean
+  profession   String
+  city         String
+  state        String
+  role         Int      @default(5)
 
-  religion String?
-  notes    String?
+  profilePhotoUrl    String?
+  emergencyContact   String?
+  indicatedBy        String?
+  leadershipPosition String?
+  religion           String?
+  notes              String?
 
   createdAt DateTime @default(now())
   updateAt  DateTime @updatedAt
@@ -32,11 +43,12 @@ model User {
 }
 
 model Event {
-  id        Int      @id @default(autoincrement())
-  name      String
-  startDate DateTime
-  endDate   DateTime
-  price     Float
+  id          Int      @id @default(autoincrement())
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  price       Float
+  workerPrice Float
 
   createdAt DateTime @default(now())
   updateAt  DateTime @updatedAt

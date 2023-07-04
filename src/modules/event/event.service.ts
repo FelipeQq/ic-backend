@@ -40,6 +40,7 @@ export class EventService {
             startDate: data.startDate,
             name: data.name,
             price: data.price,
+            workerPrice: data.workerPrice,
           },
         })
         .then((event) => {

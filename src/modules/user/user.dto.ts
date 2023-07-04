@@ -1,7 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsInt,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class UserDTO {
+  @ApiProperty({
+    example: 'url',
+    description: 'Imagem',
+  })
+  @IsString()
+  profilePhotoUrl?: string;
+
   @ApiProperty({
     example: 'uluizfelipe@gmail.com',
     description: 'E-mail',
@@ -32,12 +46,84 @@ export class UserDTO {
   birthday: Date;
 
   @ApiProperty({
+    example: 1,
+    description: 'Papel - 1 - Admin',
+  })
+  @IsInt()
+  role?: number;
+
+  @ApiProperty({
     example: '84987445761',
   })
   @IsString()
   @MinLength(11)
   @MaxLength(11)
   cellphone: string;
+
+  @ApiProperty({
+    example: true,
+  })
+  @IsBoolean()
+  diabetes: boolean;
+
+  @ApiProperty({
+    example: true,
+  })
+  @IsBoolean()
+  hypertensive: boolean;
+
+  @ApiProperty({
+    example: 'Pastor',
+    description: 'Profissão',
+  })
+  @IsString()
+  @MinLength(2)
+  profession: string;
+
+  @ApiProperty({
+    example: 'Natal',
+    description: 'Cidade',
+  })
+  @IsString()
+  @MinLength(2)
+  city: string;
+
+  @ApiProperty({
+    example: 'RN',
+    description: 'Estado',
+  })
+  @IsString()
+  @MinLength(2)
+  state: string;
+
+  @ApiProperty({
+    example: false,
+  })
+  @IsBoolean()
+  worker: boolean;
+
+  @ApiProperty({
+    example: '84987445761',
+  })
+  @IsString()
+  @MinLength(11)
+  @MaxLength(11)
+  emergencyContact?: string;
+
+  @ApiProperty({
+    example: 'Felipe',
+    description: 'Quem indicou?',
+  })
+  @IsString()
+  indicatedBy?: string;
+
+  @ApiProperty({
+    example: 'Pastor',
+    description: 'Cargo de liderança',
+  })
+  @IsString()
+  @MinLength(2)
+  leadershipPosition?: string;
 
   @ApiProperty({
     example: 'Evangelico',

@@ -22,6 +22,13 @@ export class EventDto {
 
   @ApiProperty({
     example: 200,
+    description: 'Preco para quem vai trabalhar',
+  })
+  @IsInt()
+  workerPrice: number;
+
+  @ApiProperty({
+    example: 200,
     description: 'Preco do evento',
   })
   @IsInt()
