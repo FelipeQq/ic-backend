@@ -54,15 +54,48 @@ export class EventService {
   }
 
   async findAll() {
-    return await this.prisma.event.findMany({
-      include: {
-        users: {
-          select: {
-            user: true,
+    const events = await this.prisma.event.findMany();
+
+    const adjustedEvents = await Promise.all(
+      events.map(async (event) => {
+        const userAssociations = await this.prisma.eventOnUsers.findMany({
+          where: {
+            eventId: event.id,
           },
-        },
-      },
-    });
+          select: {
+            userId: true,
+          },
+        });
+
+        const userIds = userAssociations.map(
+          (association) => association.userId,
+        );
+
+        const users = await this.prisma.user.findMany({
+          where: {
+            id: {
+              in: userIds,
+            },
+          },
+          select: {
+            email: true,
+            fullName: true,
+            profilePhotoUrl: true,
+          },
+        });
+
+        return {
+          ...event,
+          users: users.map((user) => ({
+            email: user.email,
+            fullName: user.fullName,
+            profilePhotoUrl: user.profilePhotoUrl,
+          })),
+        };
+      }),
+    );
+
+    return adjustedEvents;
   }
 
   async findOne(id: number) {
