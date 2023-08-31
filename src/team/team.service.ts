@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma';
-import { TeammDto } from './team.dto';
+import { TeammDto } from './dto/team.dto';
 
 @Injectable()
 export class TeamService {

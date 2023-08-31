@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma';
-import { EventDto } from './event.dto';
+import { EventDto } from './dto/event.dto';
 
 @Injectable()
 export class EventService {

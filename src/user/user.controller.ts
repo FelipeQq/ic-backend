@@ -10,7 +10,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { UserDTO } from './user.dto';
+import { UserDTO } from './dto/user.dto';
 import * as admin from 'firebase-admin';
 import { UserService } from './user.service';
 import { FileInterceptor } from '@nestjs/platform-express';

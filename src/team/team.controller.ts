@@ -8,7 +8,7 @@ import {
   Put,
 } from '@nestjs/common';
 import { TeamService } from './team.service';
-import { TeammDto } from './team.dto';
+import { TeammDto } from './dto/team.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('team')

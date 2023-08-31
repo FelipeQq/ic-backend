@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma';
-import { UserDTO } from './user.dto';
+import { UserDTO } from './dto/user.dto';
 
 @Injectable()
 export class UserService {

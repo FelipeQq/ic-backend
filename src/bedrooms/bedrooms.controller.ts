@@ -8,7 +8,7 @@ import {
   Put,
 } from '@nestjs/common';
 import { BedroomsService } from './bedrooms.service';
-import { BedroomDto } from './bedroom.dto';
+import { BedroomDto } from './dto/bedroom.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('bedrooms')

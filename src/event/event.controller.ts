@@ -9,7 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { EventService } from './event.service';
-import { EventDto } from './event.dto';
+import { EventDto } from './dto/event.dto';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('events')
