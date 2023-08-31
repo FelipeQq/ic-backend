@@ -11,7 +11,14 @@ initializeFirebase();
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const port = process.env.PORT;
-  app.enableCors();
+  app.enableCors({
+    origin: [
+      'http://localhost:3000',
+      'https://joyful-cranachan-228f67.netlify.app/',
+    ],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
 
   const config = new DocumentBuilder()
     .setTitle('IC')
