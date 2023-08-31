@@ -1,8 +1,8 @@
+import * as dotenv from 'dotenv';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
-import * as dotenv from 'dotenv';
 import { initializeFirebase } from './firebase.config';
 
 dotenv.config();
@@ -11,6 +11,7 @@ initializeFirebase();
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const port = process.env.PORT;
+  app.enableCors();
 
   const config = new DocumentBuilder()
     .setTitle('IC')
