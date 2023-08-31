@@ -53,16 +53,26 @@ export class EventService {
     }
   }
 
-  async findAll() {
-    return await this.prisma.event.findMany({
-      include: {
-        users: {
-          select: {
-            user: true,
+  async findAll(filters?: Partial<EventDto>) {
+    return await this.prisma.event
+      .findMany({
+        where: {
+          name: { contains: filters?.name || undefined },
+        },
+        include: {
+          users: {
+            select: {
+              user: true,
+            },
           },
         },
-      },
-    });
+      })
+      .then((events) =>
+        events.map((event) => ({
+          ...event,
+          users: event.users.map((user) => user.user),
+        })),
+      );
   }
 
   async findOne(id: number) {

@@ -6,6 +6,7 @@ import {
   Param,
   Delete,
   Put,
+  Query,
 } from '@nestjs/common';
 import { EventService } from './event.service';
 import { EventDto } from './event.dto';
@@ -24,8 +25,9 @@ export class EventController {
 
   @Get()
   @ApiOperation({ summary: 'All events' })
-  findAll() {
-    return this.eventService.findAll();
+  async findAll(@Query() filters: Partial<EventDto>) {
+    const events = await this.eventService.findAll(filters);
+    return events;
   }
 
   @ApiOperation({ summary: 'Event by id' })

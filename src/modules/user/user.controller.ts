@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Query,
   Post,
   Put,
   UploadedFile,
@@ -27,8 +28,9 @@ export class UserController {
 
   @ApiOperation({ summary: 'All users' })
   @Get()
-  async findAll() {
-    return this.userService.findAll();
+  async findAll(@Query() filters: Partial<UserDTO>) {
+    const users = await this.userService.findAll(filters);
+    return users;
   }
 
   @ApiOperation({ summary: 'User by id' })

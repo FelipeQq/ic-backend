@@ -40,8 +40,15 @@ export class UserService {
     });
   }
 
-  async findAll() {
-    return this.prisma.user.findMany();
+  async findAll(filters?: Partial<UserDTO>) {
+    const users = await this.prisma.user.findMany({
+      where: {
+        fullName: { contains: filters?.fullName || undefined },
+        email: { contains: filters?.email || undefined },
+      },
+    });
+
+    return users;
   }
 
   async findOne(id: number) {
