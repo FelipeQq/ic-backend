@@ -4,6 +4,7 @@ import {
   IsEmail,
   IsInt,
   IsString,
+  IsOptional,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -14,6 +15,7 @@ export class UserDTO {
     description: 'Imagem',
   })
   @IsString()
+  @IsOptional()
   profilePhotoUrl?: string;
 
   @ApiProperty({
@@ -106,6 +108,7 @@ export class UserDTO {
     example: '84987445761',
   })
   @IsString()
+  @IsOptional()
   @MinLength(11)
   @MaxLength(11)
   emergencyContact?: string;
@@ -115,6 +118,7 @@ export class UserDTO {
     description: 'Quem indicou?',
   })
   @IsString()
+  @IsOptional()
   indicatedBy?: string;
 
   @ApiProperty({
@@ -122,6 +126,7 @@ export class UserDTO {
     description: 'Cargo de liderança',
   })
   @IsString()
+  @IsOptional()
   @MinLength(2)
   leadershipPosition?: string;
 
@@ -129,11 +134,14 @@ export class UserDTO {
     example: 'Evangelico',
     description: 'Deve conter a religiao do usuario',
   })
+  @IsOptional()
   religion?: string;
 
   @ApiProperty({
     example: 'Alergico',
     description: 'Este campo deve conter todas as observacoes sobre o usuario',
   })
+  @IsString()
+  @IsOptional()
   notes?: string;
 }
