@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsString } from 'class-validator';
+import { IsArray, IsOptional, IsString } from 'class-validator';
 
 export class BedroomDto {
   @ApiProperty({
@@ -8,6 +8,7 @@ export class BedroomDto {
       'Campo destinado a qualquer observacao que pode conter no quarto',
   })
   @IsString()
+  @IsOptional()
   note?: string;
 
   event: any;

@@ -87,32 +87,56 @@ export class BedroomsService {
       throw new NotFoundException('Bedroom does not exists!');
     }
 
-    await this.prisma.bedrooms
-      .update({
-        data: {
-          eventId: idEvent,
-          note: updateBedroomDto.note,
-        },
-        where: {
-          id: +idBedroom,
-        },
-        include: {
-          users: {
-            select: {
-              user: true,
-            },
+    // Remove relations for users that are not in the updated list
+    await this.prisma.bedroomsOnUsers.deleteMany({
+      where: {
+        bedroomsId: idBedroom,
+        NOT: {
+          userId: {
+            in: updateBedroomDto.usersId,
           },
         },
-      })
-      .then(() => {
-        this.createRelations(updateBedroomDto.usersId, idBedroom);
-      })
-      .catch(() => {
-        throw new InternalServerErrorException();
-      });
+      },
+    });
+
+    // Update the bedroom
+    await this.prisma.bedrooms.update({
+      data: {
+        eventId: idEvent,
+        note: updateBedroomDto.note,
+      },
+      where: {
+        id: +idBedroom,
+      },
+    });
+
+    // Create relations for new users
+    await this.createRelations(updateBedroomDto.usersId, idBedroom);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} bedroom`;
+  async delete(idBedroom: number) {
+    const bedroomExist = await this.prisma.bedrooms.findUnique({
+      where: {
+        id: idBedroom,
+      },
+    });
+
+    if (!bedroomExist) {
+      throw new NotFoundException('Bedroom does not exist!');
+    }
+
+    // Delete relations
+    await this.prisma.bedroomsOnUsers.deleteMany({
+      where: {
+        bedroomsId: idBedroom,
+      },
+    });
+
+    // Deleta bedroom
+    await this.prisma.bedrooms.delete({
+      where: {
+        id: idBedroom,
+      },
+    });
   }
 }
