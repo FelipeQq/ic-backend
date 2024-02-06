@@ -21,7 +21,7 @@ export class TeamController {
     @Param('idEvent') idEvent: string,
     @Body() createTeammDto: TeammDto,
   ) {
-    return await this.teamService.create(+idEvent, createTeammDto);
+    return await this.teamService.create(idEvent, createTeammDto);
   }
 
   @Get()
@@ -31,7 +31,7 @@ export class TeamController {
 
   @Get(':idTeam')
   findOne(@Param('idTeam') idTeam: string) {
-    return this.teamService.findOne(+idTeam);
+    return this.teamService.findOne(idTeam);
   }
 
   @Put(':idTeam')
@@ -40,11 +40,11 @@ export class TeamController {
     @Param('idTeam') idTeam: string,
     @Body() updateTeammDto: TeammDto,
   ) {
-    return this.teamService.update(+idEvent, +idTeam, updateTeammDto);
+    return this.teamService.update(idEvent, idTeam, updateTeammDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.teamService.remove(+id);
+    return this.teamService.remove(id);
   }
 }

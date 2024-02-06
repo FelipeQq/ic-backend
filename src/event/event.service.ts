@@ -10,7 +10,7 @@ import { EventDto } from './dto/event.dto';
 export class EventService {
   constructor(private prisma: PrismaService) {}
 
-  async createRelations(usersIds: number[], idEvent: number) {
+  async createRelations(usersIds: string[], idEvent: string) {
     const existRelation = await this.prisma.eventOnUsers.findMany({
       where: { userId: { in: usersIds }, eventId: idEvent },
     });
@@ -21,11 +21,33 @@ export class EventService {
 
     if (filterIds.length > 0) {
       await this.prisma.eventOnUsers.createMany({
-        data: filterIds.map((id: number) => {
+        data: filterIds.map((id: string) => {
           return { userId: id, eventId: idEvent };
         }),
       });
     }
+  }
+
+  private handlerReturnEvent(events) {
+    function transformObject(event) {
+      const usersWithPayments = event.Payment.map((payment) => ({
+        ...payment.user,
+        paid: payment.paid,
+      }));
+
+      delete event.Payment;
+
+      return {
+        ...event,
+        users: usersWithPayments,
+      };
+    }
+
+    if (Array.isArray(events)) {
+      return events.map((event) => transformObject(event));
+    }
+
+    return transformObject(events);
   }
 
   async create(data: EventDto) {
@@ -60,38 +82,39 @@ export class EventService {
           name: { contains: filters?.name || undefined },
         },
         include: {
-          users: {
+          Payment: {
             select: {
+              id: true,
+              paid: true,
               user: true,
             },
           },
         },
       })
-      .then((events) =>
-        events.map((event) => ({
-          ...event,
-          users: event.users.map((user) => user.user),
-        })),
-      );
+      .then((events) => this.handlerReturnEvent(events));
   }
 
-  async findOne(id: number) {
-    return await this.prisma.event.findFirst({
-      where: { id },
-      include: {
-        users: {
-          select: {
-            user: true,
+  async findOne(id: string) {
+    return await this.prisma.event
+      .findFirst({
+        where: { id },
+        include: {
+          Payment: {
+            select: {
+              id: true,
+              paid: true,
+              user: true,
+            },
           },
         },
-      },
-    });
+      })
+      .then((event) => this.handlerReturnEvent(event));
   }
 
-  async update(id: number, updateEvent: EventDto) {
+  async update(id: string, updateEvent: EventDto) {
     const eventExists = await this.prisma.event.findUnique({
       where: {
-        id: +id,
+        id,
       },
     });
 
@@ -111,14 +134,7 @@ export class EventService {
           price: updateEvent.price,
         },
         where: {
-          id: +id,
-        },
-        include: {
-          users: {
-            select: {
-              user: true,
-            },
-          },
+          id,
         },
       })
       .then(() => {
@@ -131,10 +147,10 @@ export class EventService {
       });
   }
 
-  async remove(id: number) {
+  async remove(id: string) {
     const eventExists = await this.prisma.event.findUnique({
       where: {
-        id: +id,
+        id,
       },
     });
 
@@ -142,7 +158,7 @@ export class EventService {
       throw new NotFoundException('Event does not exists!');
     }
 
-    await this.prisma.event.delete({ where: { id: +id } }).catch(() => {
+    await this.prisma.event.delete({ where: { id } }).catch(() => {
       throw new InternalServerErrorException();
     });
   }

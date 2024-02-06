@@ -36,12 +36,12 @@ export class UserController {
   @ApiOperation({ summary: 'User by id' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
-    return this.userService.findOne(+id);
+    return this.userService.findOne(id);
   }
 
   @ApiOperation({ summary: 'Edit user' })
   @Put(':id')
-  async update(@Param('id') id: number, @Body() data: UserDTO) {
+  async update(@Param('id') id: string, @Body() data: UserDTO) {
     return this.userService.update(id, data);
   }
 
@@ -54,7 +54,7 @@ export class UserController {
   })
   @UseInterceptors(FileInterceptor('photo'))
   async setProfilePhoto(
-    @Param('id') id: number,
+    @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
     const bucket = admin.storage().bucket();

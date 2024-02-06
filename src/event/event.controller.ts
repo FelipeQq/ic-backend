@@ -33,18 +33,18 @@ export class EventController {
   @ApiOperation({ summary: 'Event by id' })
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.eventService.findOne(+id);
+    return this.eventService.findOne(id);
   }
 
   @ApiOperation({ summary: 'Edit event' })
   @Put(':id')
   update(@Param('id') id: string, @Body() updateEventDto: EventDto) {
-    return this.eventService.update(+id, updateEventDto);
+    return this.eventService.update(id, updateEventDto);
   }
 
   @ApiOperation({ summary: 'Delete event' })
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.eventService.remove(+id);
+    return this.eventService.remove(id);
   }
 }

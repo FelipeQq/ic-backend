@@ -23,7 +23,7 @@ export class BedroomsController {
     @Param('idEvent') idEvent: string,
     @Body() createBedroomDto: BedroomDto,
   ) {
-    return await this.bedroomsService.create(+idEvent, createBedroomDto);
+    return await this.bedroomsService.create(idEvent, createBedroomDto);
   }
 
   @Get()
@@ -33,7 +33,7 @@ export class BedroomsController {
 
   @Get(':idBedrooms')
   findOne(@Param('idBedrooms') idBedrooms: string) {
-    return this.bedroomsService.findOne(+idBedrooms);
+    return this.bedroomsService.findOne(idBedrooms);
   }
 
   @Put(':idBedrooms')
@@ -43,12 +43,12 @@ export class BedroomsController {
     @Param('idBedrooms') idBedrooms: string,
     @Body() updateBedroomDto: BedroomDto,
   ) {
-    return this.bedroomsService.update(+idEvent, +idBedrooms, updateBedroomDto);
+    return this.bedroomsService.update(idEvent, idBedrooms, updateBedroomDto);
   }
 
   @Delete(':id')
   @HttpCode(204)
   remove(@Param('id') id: string) {
-    return this.bedroomsService.delete(+id);
+    return this.bedroomsService.delete(id);
   }
 }

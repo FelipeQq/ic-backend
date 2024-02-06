@@ -10,7 +10,7 @@ import { TeammDto } from './dto/team.dto';
 export class TeamService {
   constructor(private prisma: PrismaService) {}
 
-  async createRelations(usersIds: number[], idTeam: number) {
+  async createRelations(usersIds: string[], idTeam: string) {
     const existRelation = await this.prisma.teamOnUsers.findMany({
       where: { userId: { in: usersIds }, teamId: idTeam },
     });
@@ -21,14 +21,14 @@ export class TeamService {
 
     if (filterIds.length > 0) {
       await this.prisma.teamOnUsers.createMany({
-        data: filterIds.map((id: number) => {
+        data: filterIds.map((id: string) => {
           return { userId: id, teamId: idTeam };
         }),
       });
     }
   }
 
-  async create(idEvent: number, createTeam: TeammDto) {
+  async create(idEvent: string, createTeam: TeammDto) {
     try {
       await this.prisma.team
         .create({
@@ -58,7 +58,7 @@ export class TeamService {
     });
   }
 
-  async findOne(id: number) {
+  async findOne(id: string) {
     return await this.prisma.team.findFirst({
       where: { id },
       include: {
@@ -72,10 +72,10 @@ export class TeamService {
     });
   }
 
-  async update(idEvent: number, idTeam: number, updateTeamDto: TeammDto) {
+  async update(idEvent: string, idTeam: string, updateTeamDto: TeammDto) {
     const teamExist = await this.prisma.team.findUnique({
       where: {
-        id: +idTeam,
+        id: idTeam,
       },
     });
 
@@ -90,7 +90,7 @@ export class TeamService {
           name: updateTeamDto.name,
         },
         where: {
-          id: +idTeam,
+          id: idTeam,
         },
         include: {
           users: {
@@ -108,7 +108,7 @@ export class TeamService {
       });
   }
 
-  remove(id: number) {
+  remove(id: string) {
     return `This action removes a #${id} team`;
   }
 }

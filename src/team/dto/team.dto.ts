@@ -18,5 +18,5 @@ export class TeammDto {
     description: 'ids dos usuarios',
   })
   @IsArray()
-  usersId: number[];
+  usersId: string[];
 }

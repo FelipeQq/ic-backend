@@ -33,9 +33,9 @@ export class UserService {
     }
   }
 
-  async setProfilePhoto(id: number, photoUrl: string): Promise<UserDTO> {
+  async setProfilePhoto(id: string, photoUrl: string): Promise<UserDTO> {
     return this.prisma.user.update({
-      where: { id: +id },
+      where: { id },
       data: { profilePhotoUrl: photoUrl },
     });
   }
@@ -51,14 +51,14 @@ export class UserService {
     return users;
   }
 
-  async findOne(id: number) {
+  async findOne(id: string) {
     return this.prisma.user.findFirst({ where: { id } });
   }
 
-  async update(id: number, data: UserDTO) {
+  async update(id: string, data: UserDTO) {
     const userExists = await this.prisma.user.findUnique({
       where: {
-        id: +id,
+        id,
       },
     });
 
@@ -72,7 +72,7 @@ export class UserService {
       await this.prisma.user.update({
         data,
         where: {
-          id: +id,
+          id,
         },
       });
     } catch (error) {

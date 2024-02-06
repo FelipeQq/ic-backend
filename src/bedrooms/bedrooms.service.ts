@@ -10,7 +10,7 @@ import { BedroomDto } from './dto/bedroom.dto';
 export class BedroomsService {
   constructor(private prisma: PrismaService) {}
 
-  async createRelations(usersIds: number[], idBedroom: number) {
+  async createRelations(usersIds: string[], idBedroom: string) {
     const existRelation = await this.prisma.bedroomsOnUsers.findMany({
       where: { userId: { in: usersIds }, bedroomsId: idBedroom },
     });
@@ -21,14 +21,14 @@ export class BedroomsService {
 
     if (filterIds.length > 0) {
       await this.prisma.bedroomsOnUsers.createMany({
-        data: filterIds.map((id: number) => {
+        data: filterIds.map((id: string) => {
           return { userId: id, bedroomsId: idBedroom };
         }),
       });
     }
   }
 
-  async create(idEvent: number, createBedroom: BedroomDto) {
+  async create(idEvent: string, createBedroom: BedroomDto) {
     try {
       await this.prisma.bedrooms
         .create({
@@ -58,7 +58,7 @@ export class BedroomsService {
     });
   }
 
-  async findOne(id: number) {
+  async findOne(id: string) {
     return await this.prisma.bedrooms.findFirst({
       where: { id },
       include: {
@@ -73,13 +73,13 @@ export class BedroomsService {
   }
 
   async update(
-    idEvent: number,
-    idBedroom: number,
+    idEvent: string,
+    idBedroom: string,
     updateBedroomDto: BedroomDto,
   ) {
     const bedroomExist = await this.prisma.bedrooms.findUnique({
       where: {
-        id: +idBedroom,
+        id: idBedroom,
       },
     });
 
@@ -106,7 +106,7 @@ export class BedroomsService {
         note: updateBedroomDto.note,
       },
       where: {
-        id: +idBedroom,
+        id: idBedroom,
       },
     });
 
@@ -114,7 +114,7 @@ export class BedroomsService {
     await this.createRelations(updateBedroomDto.usersId, idBedroom);
   }
 
-  async delete(idBedroom: number) {
+  async delete(idBedroom: string) {
     const bedroomExist = await this.prisma.bedrooms.findUnique({
       where: {
         id: idBedroom,
