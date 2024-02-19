@@ -12,14 +12,14 @@ export class UserService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: UserDTO) {
-    const userEmailExists = await this.prisma.user.findFirst({
+    const userCpfExists = await this.prisma.user.findFirst({
       where: {
-        email: data.email,
+        cpf: data.cpf,
       },
     });
 
-    if (userEmailExists) {
-      throw new ConflictException('Já existe um usuario com este e-mail');
+    if (userCpfExists) {
+      throw new ConflictException('Já existe um usuario com este cpf!');
     }
 
     try {
