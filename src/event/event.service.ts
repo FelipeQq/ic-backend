@@ -22,32 +22,30 @@ export class EventService {
     if (filterIds.length > 0) {
       await this.prisma.eventOnUsers.createMany({
         data: filterIds.map((id: string) => {
-          return { userId: id, eventId: idEvent };
+          return { userId: id, eventId: idEvent, paid: false };
         }),
       });
     }
   }
 
-  private handlerReturnEvent(events) {
-    function transformObject(event) {
-      const usersWithPayments = event.Payment.map((payment) => ({
-        ...payment.user,
-        paid: payment.paid,
+  private handlerReturnEvent(event) {
+    function transformData(event) {
+      const formattedUsers = event.users.map((user) => ({
+        ...user.user,
+        paid: user.paid || false,
       }));
-
-      delete event.Payment;
 
       return {
         ...event,
-        users: usersWithPayments,
+        users: formattedUsers,
       };
     }
 
-    if (Array.isArray(events)) {
-      return events.map((event) => transformObject(event));
+    if (Array.isArray(event)) {
+      return event.map(transformData);
     }
 
-    return transformObject(events);
+    return transformData(event);
   }
 
   async create(data: EventDto) {
@@ -82,11 +80,10 @@ export class EventService {
           name: { contains: filters?.name || undefined },
         },
         include: {
-          Payment: {
+          users: {
             select: {
-              id: true,
-              paid: true,
               user: true,
+              paid: true,
             },
           },
         },
@@ -99,11 +96,10 @@ export class EventService {
       .findFirst({
         where: { id },
         include: {
-          Payment: {
+          users: {
             select: {
-              id: true,
-              paid: true,
               user: true,
+              paid: true,
             },
           },
         },

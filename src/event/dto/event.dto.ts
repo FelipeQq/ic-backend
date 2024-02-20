@@ -39,6 +39,4 @@ export class EventDto {
     description: 'ids dos usuarios',
   })
   users?: string[];
-
-  payment?: any;
 }

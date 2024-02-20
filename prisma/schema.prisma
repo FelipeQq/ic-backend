@@ -39,22 +39,8 @@ model User {
   events      EventOnUsers[]
   bedrooms    BedroomsOnUsers[]
   TeamOnUsers TeamOnUsers[]
-  Payment     Payment[]
 
   @@map("users")
-}
-
-model Payment {
-  id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  event     Event    @relation(fields: [eventId], references: [id])
-  eventId   String
-  paid      Boolean
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("payments")
 }
 
 model Event {
@@ -72,16 +58,18 @@ model Event {
 
   bedrooms Bedrooms[]
   Team     Team[]
-  Payment  Payment[]
 
   @@map("events")
 }
 
 model EventOnUsers {
-  user    User   @relation(fields: [userId], references: [id])
-  userId  String // relation scalar field (used in the `@relation` attribute above)
-  event   Event  @relation(fields: [eventId], references: [id])
-  eventId String // relation scalar field (used in the `@relation` attribute above)
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String // relation scalar field (used in the `@relation` attribute above)
+  event     Event    @relation(fields: [eventId], references: [id])
+  eventId   String // relation scalar field (used in the `@relation` attribute above)
+  paid      Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@id([userId, eventId])
 }

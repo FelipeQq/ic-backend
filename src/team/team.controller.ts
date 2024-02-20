@@ -12,7 +12,7 @@ import { TeammDto } from './dto/team.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('team')
-@Controller('events/:id/teams')
+@Controller('events/:idEvent/teams')
 export class TeamController {
   constructor(private readonly teamService: TeamService) {}
 

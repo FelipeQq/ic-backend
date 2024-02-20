@@ -130,6 +130,10 @@ export class UserDTO {
   @MinLength(2)
   leadershipPosition?: string;
 
+  @IsString()
+  @IsOptional()
+  eventId?: string;
+
   @ApiProperty({
     example: 'Evangelico',
     description: 'Deve conter a religiao do usuario',
