@@ -6,6 +6,7 @@ import {
   Param,
   Delete,
   Put,
+  HttpCode,
 } from '@nestjs/common';
 import { TeamService } from './team.service';
 import { TeammDto } from './dto/team.dto';
@@ -16,7 +17,8 @@ import { ApiTags } from '@nestjs/swagger';
 export class TeamController {
   constructor(private readonly teamService: TeamService) {}
 
-  @Post(':idTeam')
+  @Post()
+  @HttpCode(204)
   async create(
     @Param('idEvent') idEvent: string,
     @Body() createTeammDto: TeammDto,
@@ -25,8 +27,8 @@ export class TeamController {
   }
 
   @Get()
-  findAll() {
-    return this.teamService.findAll();
+  async findAll(@Param('idEvent') idEvent: string) {
+    return this.teamService.findAll(idEvent);
   }
 
   @Get(':idTeam')
@@ -35,6 +37,7 @@ export class TeamController {
   }
 
   @Put(':idTeam')
+  @HttpCode(204)
   update(
     @Param('idEvent') idEvent: string,
     @Param('idTeam') idTeam: string,
@@ -44,7 +47,8 @@ export class TeamController {
   }
 
   @Delete(':id')
+  @HttpCode(204)
   remove(@Param('id') id: string) {
-    return this.teamService.remove(id);
+    return this.teamService.delete(id);
   }
 }

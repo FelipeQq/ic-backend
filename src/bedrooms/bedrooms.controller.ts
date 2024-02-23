@@ -27,8 +27,8 @@ export class BedroomsController {
   }
 
   @Get()
-  findAll() {
-    return this.bedroomsService.findAll();
+  async findAll(@Param('idEvent') idEvent: string) {
+    return this.bedroomsService.findAll(idEvent);
   }
 
   @Get(':idBedrooms')

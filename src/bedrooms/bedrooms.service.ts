@@ -45,8 +45,11 @@ export class BedroomsService {
     }
   }
 
-  async findAll() {
+  async findAll(eventId: string) {
     return await this.prisma.bedrooms.findMany({
+      where: {
+        eventId,
+      },
       include: {
         event: true,
         users: {

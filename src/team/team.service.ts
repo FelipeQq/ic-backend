@@ -45,8 +45,11 @@ export class TeamService {
     }
   }
 
-  async findAll() {
+  async findAll(eventId: string) {
     return await this.prisma.team.findMany({
+      where: {
+        eventId,
+      },
       include: {
         event: true,
         users: {
@@ -108,7 +111,29 @@ export class TeamService {
       });
   }
 
-  remove(id: string) {
-    return `This action removes a #${id} team`;
+  async delete(teamId: string) {
+    const bedroomExist = await this.prisma.team.findUnique({
+      where: {
+        id: teamId,
+      },
+    });
+
+    if (!bedroomExist) {
+      throw new NotFoundException('Team does not exist!');
+    }
+
+    // Delete relations
+    await this.prisma.teamOnUsers.deleteMany({
+      where: {
+        teamId,
+      },
+    });
+
+    // Deleta bedroom
+    await this.prisma.team.delete({
+      where: {
+        id: teamId,
+      },
+    });
   }
 }
