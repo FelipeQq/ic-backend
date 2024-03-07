@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma';
 import { UserDTO } from './dto/user.dto';
+import { enviarEmailConfirmacao } from 'src/nodeMailer/sendEmail';
 
 @Injectable()
 export class UserService {
@@ -24,10 +25,25 @@ export class UserService {
 
     try {
       data.birthday = new Date(data.birthday);
+      const eventId = data.eventId;
+      delete data.eventId;
 
-      await this.prisma.user.create({
+     const user = await this.prisma.user.create({
         data,
       });
+      let event={}
+      if (eventId) {
+        event=await this.prisma.eventOnUsers.create({
+          data: {
+            eventId,
+            userId: user.id,
+            paid: false,
+          },
+        });
+      }
+      if(user && event){
+        await enviarEmailConfirmacao(user.fullName,user.email)
+      }
     } catch (error) {
       throw new InternalServerErrorException();
     }
