@@ -46,33 +46,42 @@ export class TeamService {
   }
 
   async findAll(eventId: string) {
-    return await this.prisma.team.findMany({
-      where: {
-        eventId,
-      },
-      include: {
-        event: true,
-        users: {
-          select: {
-            user: true,
+    return await this.prisma.team
+      .findMany({
+        where: {
+          eventId,
+        },
+        include: {
+          event: true,
+          users: {
+            select: {
+              user: true,
+            },
           },
         },
-      },
-    });
+      })
+      .then((teams) =>
+        teams.map((team) => ({
+          ...team,
+          users: team.users.map((e) => e.user),
+        })),
+      );
   }
 
   async findOne(id: string) {
-    return await this.prisma.team.findFirst({
-      where: { id },
-      include: {
-        event: true,
-        users: {
-          select: {
-            user: true,
+    return await this.prisma.team
+      .findFirst({
+        where: { id },
+        include: {
+          event: true,
+          users: {
+            select: {
+              user: true,
+            },
           },
         },
-      },
-    });
+      })
+      .then((team) => ({ ...team, users: team?.users?.map((e) => e.user) }));
   }
 
   async update(idEvent: string, idTeam: string, updateTeamDto: TeammDto) {

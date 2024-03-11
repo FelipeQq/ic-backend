@@ -46,33 +46,45 @@ export class BedroomsService {
   }
 
   async findAll(eventId: string) {
-    return await this.prisma.bedrooms.findMany({
-      where: {
-        eventId,
-      },
-      include: {
-        event: true,
-        users: {
-          select: {
-            user: true,
+    return await this.prisma.bedrooms
+      .findMany({
+        where: {
+          eventId,
+        },
+        include: {
+          event: true,
+          users: {
+            select: {
+              user: true,
+            },
           },
         },
-      },
-    });
+      })
+      .then((bedrooms) =>
+        bedrooms.map((bedroom) => ({
+          ...bedroom,
+          users: bedroom.users.map((e) => e.user),
+        })),
+      );
   }
 
   async findOne(id: string) {
-    return await this.prisma.bedrooms.findFirst({
-      where: { id },
-      include: {
-        event: true,
-        users: {
-          select: {
-            user: true,
+    return await this.prisma.bedrooms
+      .findFirst({
+        where: { id },
+        include: {
+          event: true,
+          users: {
+            select: {
+              user: true,
+            },
           },
         },
-      },
-    });
+      })
+      .then((bedrooms) => ({
+        ...bedrooms,
+        users: bedrooms?.users?.map((e) => e.user),
+      }));
   }
 
   async update(

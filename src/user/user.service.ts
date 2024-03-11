@@ -28,21 +28,27 @@ export class UserService {
       const eventId = data.eventId;
       delete data.eventId;
 
-     const user = await this.prisma.user.create({
+      const user = await this.prisma.user.create({
         data,
       });
-      let event={}
+      let event = {};
       if (eventId) {
-        event=await this.prisma.eventOnUsers.create({
-          data: {
-            eventId,
-            userId: user.id,
-            paid: false,
-          },
+        const hasEvent = await this.prisma.event.findFirst({
+          where: { id: eventId },
         });
+
+        if (hasEvent) {
+          event = await this.prisma.eventOnUsers.create({
+            data: {
+              eventId,
+              userId: user.id,
+              paid: false,
+            },
+          });
+        }
       }
-      if(user && event){
-        await enviarEmailConfirmacao(user.fullName,user.email)
+      if (user && event) {
+        await enviarEmailConfirmacao(user.fullName, user.email);
       }
     } catch (error) {
       throw new InternalServerErrorException();

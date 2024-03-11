@@ -3,88 +3,102 @@ import axios from 'axios';
 
 // Interface para o corpo da solicitação do token
 interface TokenRequestBody {
-    client_id: string;
-    client_secret: string;
-    refresh_token: string;
-    grant_type: string;
+  client_id: string;
+  client_secret: string;
+  refresh_token: string;
+  grant_type: string;
 }
 
 // Interface para opções de e-mail
 interface MailOptions {
-    from: string;
-    to: string;
-    subject: string;
-    text: string;
-    attachments: { path: string; filename: string; }[];
+  from: string;
+  to: string;
+  subject: string;
+  text: string;
+  attachments: { path: string; filename: string }[];
 }
 
 // Função para renovar o token de acesso
 async function renovarToken(refreshToken: string): Promise<string> {
-    const requestBody: TokenRequestBody = {
-        client_id: '624059029959-orlvtb9vceupovi6ljal7tt3v1vfun50.apps.googleusercontent.com',
-        client_secret: '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',
-        refresh_token: refreshToken,
-        grant_type: 'refresh_token'
-    };
+  const requestBody: TokenRequestBody = {
+    client_id:
+      '624059029959-orlvtb9vceupovi6ljal7tt3v1vfun50.apps.googleusercontent.com',
+    client_secret: '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',
+    refresh_token: refreshToken,
+    grant_type: 'refresh_token',
+  };
 
-    try {
-        const response = await axios.post('https://oauth2.googleapis.com/token', requestBody);
-        return response.data.access_token;
-    } catch (error) {
-        console.error('Erro ao renovar o token de acesso:', error.response.data.error);
-        throw error;
-    }
+  try {
+    const response = await axios.post(
+      'https://oauth2.googleapis.com/token',
+      requestBody,
+    );
+    return response.data.access_token;
+  } catch (error) {
+    console.error(
+      'Erro ao renovar o token de acesso:',
+      error.response.data.error,
+    );
+    throw error;
+  }
 }
 
 // Função para enviar e-mail de confirmação com anexo
-export async function enviarEmailConfirmacao(fullName: string,email: string): Promise<void> {
-    // Renovar o token de acesso antes de enviar o e-mail
-    try {
-        const accessToken = await renovarToken(refreshToken);
+export async function enviarEmailConfirmacao(
+  fullName: string,
+  email: string,
+): Promise<void> {
+  // Renovar o token de acesso antes de enviar o e-mail
+  try {
+    const accessToken = await renovarToken(refreshToken);
 
-        // Configurar o transporter do Nodemailer com o novo token de acesso
-            
-        let transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                type: 'OAuth2',
-                user: 'renatoemanuel98@gmail.com',
-                clientId: '624059029959-orlvtb9vceupovi6ljal7tt3v1vfun50.apps.googleusercontent.com',
-                clientSecret: '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',
-                refreshToken: refreshToken,
-                accessToken: accessToken
-            }
-        });
+    // Configurar o transporter do Nodemailer com o novo token de acesso
 
-        const mailOptions: MailOptions = {
-            from: 'renatoemanuel98@gmail.com',
-            to: email,
-            subject: assunto,
-            text: corpo(fullName),
-            attachments: [
-                {
-                    path: anexoPath, // Caminho do anexo no sistema de arquivos
-                    filename: anexoNome // Nome do anexo
-                }
-            ]
-        };
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user: 'renatoemanuel98@gmail.com',
+        clientId:
+          '624059029959-orlvtb9vceupovi6ljal7tt3v1vfun50.apps.googleusercontent.com',
+        clientSecret: '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',
+        refreshToken: refreshToken,
+        accessToken: accessToken,
+      },
+    });
 
-        transporter.sendMail(mailOptions, function(error, info) {
-            if (error) {
-                console.log('Erro ao enviar e-mail:', error);
-            } else {
-                console.log('E-mail de confirmação enviado:', info.response);
-            }
-        });
-    } catch (error) {
-        console.error('Erro ao enviar o e-mail de confirmação:', error);
-    }
+    const mailOptions: MailOptions = {
+      from: 'renatoemanuel98@gmail.com',
+      to: email,
+      subject: assunto,
+      text: corpo(fullName),
+      attachments: [
+        {
+          path: anexoPath, // Caminho do anexo no sistema de arquivos
+          filename: anexoNome, // Nome do anexo
+        },
+      ],
+    };
+
+    transporter.sendMail(mailOptions, function (error, info) {
+      if (error) {
+        console.log('Erro ao enviar e-mail:', error);
+      } else {
+        console.log('E-mail de confirmação enviado:', info.response);
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao enviar o e-mail de confirmação:', error);
+  }
 }
 
 // Exemplo de uso:
 //const destinatario = 'billycrazy98@gmail.com';
-const assunto = 'Confirmação de Inscrição - 7° Cursilho Masculino da Cristandade da Igreja de Cristo';
-const corpo =(fullName:String)=>( `Assunto: Confirmação de Inscrição - 7° Cursilho Masculino da Cristandade da Igreja de Cristo
+const assunto =
+  'Confirmação de Inscrição - 7° Cursilho Masculino da Cristandade da Igreja de Cristo';
+const corpo = (
+  fullName: string,
+) => `Assunto: Confirmação de Inscrição - 7° Cursilho Masculino da Cristandade da Igreja de Cristo
 
 Prezado ${fullName},
 
@@ -103,10 +117,11 @@ Prezado ${fullName},
 [Seu Nome]
 [Seu Cargo/Organização do Evento]
 [Seu Contato]
-`)
+`;
 
 // Coloque o refreshToken atual aqui
-const refreshToken = '1//04eiyMiZHravACgYIARAAGAQSNwF-L9Ir7bB3_6oyA_Q3Hwg_MYeeu35Th2fP1teyNTTm0ZoB7tvSERLkGUNozVvXqgIB5_ac1cM';
+const refreshToken =
+  '1//04eiyMiZHravACgYIARAAGAQSNwF-L9Ir7bB3_6oyA_Q3Hwg_MYeeu35Th2fP1teyNTTm0ZoB7tvSERLkGUNozVvXqgIB5_ac1cM';
 const anexoPath = 'src/nodeMailer/testepdfemail.pdf'; // Substitua pelo caminho do arquivo
 const anexoNome = 'testepdfemail.pdf'; // Substitua pelo nome do arquivo
 
