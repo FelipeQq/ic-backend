@@ -21,6 +21,7 @@ model User {
   diabetes           Boolean
   hypertensive       Boolean
   profession         String
+  neighborhood       String
   city               String
   state              String
   role               Int      @default(5)

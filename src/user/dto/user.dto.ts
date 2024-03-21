@@ -83,6 +83,13 @@ export class UserDTO {
   profession: string;
 
   @ApiProperty({
+    example: 'Parque das arvores',
+    description: 'Bairro',
+  })
+  @IsString()
+  neighborhood: string;
+
+  @ApiProperty({
     example: 'Natal',
     description: 'Cidade',
   })
