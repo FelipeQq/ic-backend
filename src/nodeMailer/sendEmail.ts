@@ -1,5 +1,11 @@
 import * as nodemailer from 'nodemailer';
 import axios from 'axios';
+import {
+  CLIENT_ID_SERVER_EMAIL,
+  CLIENT_SECRET_SERVER_EMAIL,
+  REFRESH_TOKEN_SERVER_EMAIL,
+  USER_CLIENT_SERVER_EMAIL,
+} from 'src/secret';
 
 // Interface para o corpo da solicitação do token
 interface TokenRequestBody {
@@ -21,9 +27,8 @@ interface MailOptions {
 // Função para renovar o token de acesso
 async function renovarToken(refreshToken: string): Promise<string> {
   const requestBody: TokenRequestBody = {
-    client_id:
-      '624059029959-orlvtb9vceupovi6ljal7tt3v1vfun50.apps.googleusercontent.com',
-    client_secret: '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',
+    client_id: CLIENT_ID_SERVER_EMAIL,
+    client_secret: CLIENT_SECRET_SERVER_EMAIL,
     refresh_token: refreshToken,
     grant_type: 'refresh_token',
   };
@@ -47,6 +52,7 @@ async function renovarToken(refreshToken: string): Promise<string> {
 export async function enviarEmailConfirmacao(
   fullName: string,
   email: string,
+  isWorker: boolean,
 ): Promise<void> {
   // Renovar o token de acesso antes de enviar o e-mail
   try {
@@ -58,20 +64,19 @@ export async function enviarEmailConfirmacao(
       service: 'gmail',
       auth: {
         type: 'OAuth2',
-        user: 'renatoemanuel98@gmail.com',
-        clientId:
-          '624059029959-orlvtb9vceupovi6ljal7tt3v1vfun50.apps.googleusercontent.com',
-        clientSecret: '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',
+        user: USER_CLIENT_SERVER_EMAIL,
+        clientId: CLIENT_ID_SERVER_EMAIL,
+        clientSecret: CLIENT_SECRET_SERVER_EMAIL,
         refreshToken: refreshToken,
         accessToken: accessToken,
       },
     });
 
     const mailOptions: MailOptions = {
-      from: 'renatoemanuel98@gmail.com',
+      from: USER_CLIENT_SERVER_EMAIL,
       to: email,
       subject: assunto,
-      text: corpo(fullName),
+      text: corpo(fullName, isWorker),
       attachments: [
         {
           path: anexoPath, // Caminho do anexo no sistema de arquivos
@@ -94,34 +99,40 @@ export async function enviarEmailConfirmacao(
 
 // Exemplo de uso:
 //const destinatario = 'billycrazy98@gmail.com';
+
 const assunto =
   'Confirmação de Inscrição - 7° Cursilho Masculino da Cristandade da Igreja de Cristo';
-const corpo = (
-  fullName: string,
-) => `Assunto: Confirmação de Inscrição - 7° Cursilho Masculino da Cristandade da Igreja de Cristo
+const corpo = (fullName: string, isWorker: boolean) => {
+  const groupWpp = isWorker
+    ? ''
+    : 'Link para grupo no WhatsApp: https://chat.whatsapp.com/J7Yu5jpJcry72HX6QWJswK';
 
-Prezado ${fullName},
-
--É com grande alegria que confirmamos sua inscrição no 7° Cursilho Masculino da Cristandade da Igreja de Cristo, que acontecerá nos dias [Data de Início] a [Data de Término], no(a) [Local do Evento].
-
--Agradecemos sinceramente por se juntar a nós neste momento de crescimento espiritual e compartilhamento de fé. Estamos ansiosos para viver juntos uma experiência significativa e inspiradora durante o evento.
-
-📢📢Fique atento para futuras comunicações contendo informações detalhadas sobre a programação, procedimentos de chegada, lista de itens necessários e quaisquer atualizações relevantes.
-
-✔️Se surgir alguma dúvida ou se precisar de assistência adicional, por favor, não hesite em entrar em contato conosco.
-
-🫂Estamos ansiosos para recebê-lo pessoalmente no 7° Cursilho Masculino da Cristandade da Igreja de Cristo!
-
-🤝Deus conta com você!
-
-[Seu Nome]
-[Seu Cargo/Organização do Evento]
-[Seu Contato]
-`;
+  return `Assunto: Confirmação de Inscrição - 7° Cursilho Masculino da Cristandade da Igreja de Cristo
+  
+  Prezado ${fullName},
+  
+  -É com grande alegria que confirmamos sua inscrição no 7° Cursilho Masculino da Cristandade da Igreja de Cristo, que acontecerá nos dias 30 de maio a 02 de junho, no(a) Granja Monte Moriá.
+  
+  -Agradecemos sinceramente por se juntar a nós neste momento de crescimento espiritual e compartilhamento de fé. Estamos ansiosos para viver juntos uma experiência significativa e inspiradora durante o evento.
+  
+  📢📢Fique atento para futuras comunicações contendo informações detalhadas sobre a programação, procedimentos de chegada, lista de itens necessários e quaisquer atualizações relevantes.
+  
+  ✔️Se surgir alguma dúvida ou se precisar de assistência adicional, por favor, não hesite em entrar em contato conosco.
+  
+  🫂Estamos ansiosos para recebê-lo pessoalmente no 7° Cursilho Masculino da Cristandade da Igreja de Cristo!
+  
+  🤝Deus conta com você!
+  
+  ${groupWpp}
+  
+  Pr. Kleber Junior de Sousa
+  Lider Espiritual
+  84 99170-1727
+  `;
+};
 
 // Coloque o refreshToken atual aqui
-const refreshToken =
-  '1//04eiyMiZHravACgYIARAAGAQSNwF-L9Ir7bB3_6oyA_Q3Hwg_MYeeu35Th2fP1teyNTTm0ZoB7tvSERLkGUNozVvXqgIB5_ac1cM';
+const refreshToken = REFRESH_TOKEN_SERVER_EMAIL;
 const anexoPath = 'src/nodeMailer/testepdfemail.pdf'; // Substitua pelo caminho do arquivo
 const anexoNome = 'testepdfemail.pdf'; // Substitua pelo nome do arquivo
 

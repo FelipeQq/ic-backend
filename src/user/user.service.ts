@@ -48,7 +48,7 @@ export class UserService {
         }
       }
       if (user && event) {
-        await enviarEmailConfirmacao(user.fullName, user.email);
+        await enviarEmailConfirmacao(user.fullName, user.email, user.worker);
       }
     } catch (error) {
       throw new InternalServerErrorException();
