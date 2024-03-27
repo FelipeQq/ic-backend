@@ -78,10 +78,10 @@ export async function enviarEmailConfirmacao(
       subject: assunto,
       text: corpo(fullName, isWorker),
       attachments: [
-        {
-          path: anexoPath, // Caminho do anexo no sistema de arquivos
-          filename: anexoNome, // Nome do anexo
-        },
+        // {
+        //   path: anexoPath, // Caminho do anexo no sistema de arquivos
+        //   filename: anexoNome, // Nome do anexo
+        // },
       ],
     };
 
@@ -133,7 +133,7 @@ const corpo = (fullName: string, isWorker: boolean) => {
 
 // Coloque o refreshToken atual aqui
 const refreshToken = REFRESH_TOKEN_SERVER_EMAIL;
-const anexoPath = 'src/nodeMailer/testepdfemail.pdf'; // Substitua pelo caminho do arquivo
-const anexoNome = 'testepdfemail.pdf'; // Substitua pelo nome do arquivo
+// const anexoPath = 'src/nodeMailer/testepdfemail.pdf'; // Substitua pelo caminho do arquivo
+// const anexoNome = 'testepdfemail.pdf'; // Substitua pelo nome do arquivo
 
 //enviarEmailConfirmacao(destinatario, assunto, corpo, refreshToken, anexoPath, anexoNome);
