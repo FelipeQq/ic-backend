@@ -68,6 +68,9 @@ export class UserService {
         fullName: { contains: filters?.fullName || undefined },
         email: { contains: filters?.email || undefined },
       },
+      orderBy: {
+        role: 'asc',
+      },
     });
 
     return users;
