@@ -95,6 +95,17 @@ export class TeamService {
       throw new NotFoundException('Team does not exists!');
     }
 
+    await this.prisma.teamOnUsers.deleteMany({
+      where: {
+        teamId: idTeam,
+        NOT: {
+          userId: {
+            in: updateTeamDto.usersId,
+          },
+        },
+      },
+    });
+
     await this.prisma.team
       .update({
         data: {
