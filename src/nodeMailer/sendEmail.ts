@@ -101,17 +101,17 @@ export async function enviarEmailConfirmacao(
 //const destinatario = 'billycrazy98@gmail.com';
 
 const assunto =
-  'Confirmação de Inscrição - 7° Cursilho Masculino da Cristandade da Igreja de Cristo';
+  'Confirmação de Inscrição - 5° Cursilho Feminino da Cristandade da Igreja de Cristo';
 const corpo = (fullName: string, isWorker: boolean) => {
   const groupWpp = isWorker
     ? ''
-    : 'Link para grupo no WhatsApp: https://chat.whatsapp.com/J7Yu5jpJcry72HX6QWJswK';
+    : 'Link para grupo no WhatsApp: https://chat.whatsapp.com/FM8krrlr32U0wQnYFoZkNL';
 
-  return `Assunto: Confirmação de Inscrição - 7° Cursilho Masculino da Cristandade da Igreja de Cristo
+  return `Assunto: Confirmação de Inscrição - 5° Cursilho Feminino da Cristandade da Igreja de Cristo
   
   Prezado ${fullName},
   
-  -É com grande alegria que confirmamos sua inscrição no 7° Cursilho Masculino da Cristandade da Igreja de Cristo, que acontecerá nos dias 30 de maio a 02 de junho, no(a) Granja Monte Moriá.
+  -É com grande alegria que confirmamos sua inscrição no 5° Cursilho Feminino da Cristandade da Igreja de Cristo, que acontecerá nos dias 30 de maio a 02 de junho, no(a) Granja Monte Moriá.
   
   -Agradecemos sinceramente por se juntar a nós neste momento de crescimento espiritual e compartilhamento de fé. Estamos ansiosos para viver juntos uma experiência significativa e inspiradora durante o evento.
   
@@ -119,7 +119,7 @@ const corpo = (fullName: string, isWorker: boolean) => {
   
   ✔️Se surgir alguma dúvida ou se precisar de assistência adicional, por favor, não hesite em entrar em contato conosco.
   
-  🫂Estamos ansiosos para recebê-lo pessoalmente no 7° Cursilho Masculino da Cristandade da Igreja de Cristo!
+  🫂Estamos ansiosos para recebê-lo pessoalmente no 5° Cursilho Feminino da Cristandade da Igreja de Cristo!
   
   🤝Deus conta com você!
   
