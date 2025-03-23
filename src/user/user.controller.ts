@@ -8,14 +8,23 @@ import {
   Put,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { UserDTO } from './dto/user.dto';
 import * as admin from 'firebase-admin';
 import { UserService } from './user.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { JwtAuthGuard } from 'src/decorators/auth.guard';
 
 @ApiTags('users')
+@ApiBearerAuth()
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -27,6 +36,7 @@ export class UserController {
   }
 
   @ApiOperation({ summary: 'All users' })
+  @UseGuards(JwtAuthGuard)
   @Get()
   async findAll(@Query() filters: Partial<UserDTO>) {
     const users = await this.userService.findAll(filters);
@@ -34,12 +44,14 @@ export class UserController {
   }
 
   @ApiOperation({ summary: 'User by id' })
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
   }
 
   @ApiOperation({ summary: 'Edit user' })
+  @UseGuards(JwtAuthGuard)
   @Put(':id')
   async update(@Param('id') id: string, @Body() data: UserDTO) {
     return this.userService.update(id, data);
@@ -52,6 +64,7 @@ export class UserController {
     description: 'Arquivo de foto de perfil do usuário',
     type: 'file',
   })
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('photo'))
   async setProfilePhoto(
     @Param('id') id: string,

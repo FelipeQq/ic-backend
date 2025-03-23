@@ -13,6 +13,7 @@ datasource db {
 model User {
   id                 String   @id @default(uuid())
   email              String
+  password           String   @default("$2b$10$QGF/lucztAy.bqQFEQcSOOjP3fGMZfSsCIl4t.dfFo15Hh0v/C8xW")
   fullName           String
   cpf                String   @unique
   birthday           DateTime

@@ -76,6 +76,10 @@ export class UserService {
     return users;
   }
 
+  async findByDocument(document: string) {
+    return this.prisma.user.findFirst({ where: { cpf: document } });
+  }
+
   async findOne(id: string) {
     return this.prisma.user.findFirst({ where: { id } });
   }

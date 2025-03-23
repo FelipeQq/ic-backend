@@ -34,6 +34,13 @@ export class UserDTO {
   fullName: string;
 
   @ApiProperty({
+    example: '123456',
+    description: 'Senha',
+  })
+  @IsString()
+  password: string;
+
+  @ApiProperty({
     example: '10647111111',
   })
   @IsString()
