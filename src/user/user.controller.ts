@@ -35,6 +35,16 @@ export class UserController {
     return this.userService.create(data);
   }
 
+  @ApiOperation({ summary: 'Create relation user event' })
+  @Post(':idUser/event/:idEvent')
+  @UseGuards(JwtAuthGuard)
+  async createRelationEvent(
+    @Param('idUser') idUser: string,
+    @Param('idEvent') idEvent: string,
+  ) {
+    return this.userService.createRelationEvent(idUser, idEvent);
+  }
+
   @ApiOperation({ summary: 'All users' })
   @UseGuards(JwtAuthGuard)
   @Get()

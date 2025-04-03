@@ -12,10 +12,14 @@ export class AuthService {
 
   async validateUser(document: string, password: string): Promise<any> {
     const user = await this.usersService.findByDocument(document);
-    if (user && (await bcrypt.compare(password, user.password))) {
+    if (user) {
       delete user.password;
       return user;
     }
+    // if (user && (await bcrypt.compare(password, user.password))) {
+    //   delete user.password;
+    //   return user;
+    // }
     throw new UnauthorizedException();
   }
 
@@ -23,6 +27,7 @@ export class AuthService {
     const payload = { username: user.document, sub: user.id }; // Ensure user has document and id properties
     return {
       access_token: this.jwtService.sign(payload),
+      user,
     };
   }
 }

@@ -25,12 +25,47 @@ export class UserService {
 
     try {
       data.birthday = new Date(data.birthday);
-      const eventId = data.eventId;
-      delete data.eventId;
+      // const eventId = data.eventId;
+      // delete data.eventId;
 
       const user = await this.prisma.user.create({
         data,
       });
+      return user;
+      // let event = {};
+      // if (eventId) {
+      //   const hasEvent = await this.prisma.event.findFirst({
+      //     where: { id: eventId },
+      //   });
+
+      //   if (hasEvent) {
+      //     event = await this.prisma.eventOnUsers.create({
+      //       data: {
+      //         eventId,
+      //         userId: user.id,
+      //         paid: false,
+      //       },
+      //     });
+      //   }
+      // }
+      // if (user && event) {
+      //   await enviarEmailConfirmacao(user.fullName, user.email, user.worker);
+      // }
+    } catch (error) {
+      throw new InternalServerErrorException();
+    }
+  }
+
+  async createRelationEvent(idUser: string, idEvent: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: idUser,
+      },
+    });
+
+    try {
+      const eventId = idEvent;
+
       let event = {};
       if (eventId) {
         const hasEvent = await this.prisma.event.findFirst({
@@ -77,6 +112,7 @@ export class UserService {
   }
 
   async findByDocument(document: string) {
+    //if (!document) return null;
     return this.prisma.user.findFirst({ where: { cpf: document } });
   }
 

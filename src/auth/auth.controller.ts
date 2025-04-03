@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 
@@ -17,7 +17,11 @@ export class AuthController {
       },
     },
   })
-  async login(@Body() loginDto: { email: string; password: string }) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: { document: string; password: string }) {
+    const user = await this.authService.validateUser(
+      loginDto.document,
+      loginDto.password,
+    );
+    return this.authService.login(user);
   }
 }
