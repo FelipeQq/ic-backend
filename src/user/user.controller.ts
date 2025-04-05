@@ -41,8 +41,9 @@ export class UserController {
   async createRelationEvent(
     @Param('idUser') idUser: string,
     @Param('idEvent') idEvent: string,
+    @Body('worker') worker: boolean,
   ) {
-    return this.userService.createRelationEvent(idUser, idEvent);
+    return this.userService.createRelationEvent(idUser, idEvent, worker);
   }
 
   @ApiOperation({ summary: 'All users' })

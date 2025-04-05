@@ -7,10 +7,11 @@ import {
 import { PrismaService } from '../prisma';
 import { UserDTO } from './dto/user.dto';
 import { enviarEmailConfirmacao } from 'src/nodeMailer/sendEmail';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private jwtService: JwtService) {}
 
   async create(data: UserDTO) {
     const userCpfExists = await this.prisma.user.findFirst({
@@ -31,7 +32,11 @@ export class UserService {
       const user = await this.prisma.user.create({
         data,
       });
-      return user;
+      const payload = { username: user.cpf, sub: user.id };
+      return {
+        access_token: this.jwtService.sign(payload),
+        user,
+      };
       // let event = {};
       // if (eventId) {
       //   const hasEvent = await this.prisma.event.findFirst({
@@ -56,7 +61,7 @@ export class UserService {
     }
   }
 
-  async createRelationEvent(idUser: string, idEvent: string) {
+  async createRelationEvent(idUser: string, idEvent: string, worker: boolean) {
     const user = await this.prisma.user.findFirst({
       where: {
         id: idUser,
@@ -78,12 +83,18 @@ export class UserService {
               eventId,
               userId: user.id,
               paid: false,
+              worker,
             },
           });
         }
-      }
-      if (user && event) {
-        await enviarEmailConfirmacao(user.fullName, user.email, user.worker);
+        if (user && event) {
+          await enviarEmailConfirmacao(
+            user.fullName,
+            user.email,
+            worker,
+            hasEvent.name,
+          );
+        }
       }
     } catch (error) {
       throw new InternalServerErrorException();
@@ -112,8 +123,8 @@ export class UserService {
   }
 
   async findByDocument(document: string) {
-    //if (!document) return null;
-    return this.prisma.user.findFirst({ where: { cpf: document } });
+    if (!document) return null;
+    return this.prisma.user.findUnique({ where: { cpf: document } });
   }
 
   async findOne(id: string) {

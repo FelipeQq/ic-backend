@@ -22,6 +22,7 @@ export class AuthController {
       loginDto.document,
       loginDto.password,
     );
+
     return this.authService.login(user);
   }
 }

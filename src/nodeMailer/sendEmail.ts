@@ -53,6 +53,7 @@ export async function enviarEmailConfirmacao(
   fullName: string,
   email: string,
   isWorker: boolean,
+  nameEvent: string,
 ): Promise<void> {
   // Renovar o token de acesso antes de enviar o e-mail
   try {
@@ -75,8 +76,8 @@ export async function enviarEmailConfirmacao(
     const mailOptions: MailOptions = {
       from: USER_CLIENT_SERVER_EMAIL,
       to: email,
-      subject: assunto,
-      text: corpo(fullName, isWorker),
+      subject: assunto(nameEvent),
+      text: corpo(fullName, isWorker, nameEvent),
       attachments: [
         // {
         //   path: anexoPath, // Caminho do anexo no sistema de arquivos
@@ -100,18 +101,19 @@ export async function enviarEmailConfirmacao(
 // Exemplo de uso:
 //const destinatario = 'billycrazy98@gmail.com';
 
-const assunto =
-  'Confirmação de Inscrição - 5° Cursilho Feminino da Cristandade da Igreja de Cristo';
-const corpo = (fullName: string, isWorker: boolean) => {
+const assunto = (nameEvent: string): string => {
+  return `Confirmação de Inscrição - ${nameEvent} da Igreja de Cristo`;
+};
+const corpo = (fullName: string, isWorker: boolean, nameEvent: string) => {
   const groupWpp = isWorker
     ? ''
     : 'Link para grupo no WhatsApp: https://chat.whatsapp.com/FM8krrlr32U0wQnYFoZkNL';
 
-  return `Assunto: Confirmação de Inscrição - 5° Cursilho Feminino da Cristandade da Igreja de Cristo
+  return `Assunto: Confirmação de Inscrição - ${nameEvent} da Igreja de Cristo
   
   Prezado ${fullName},
   
-  -É com grande alegria que confirmamos sua inscrição no 5° Cursilho Feminino da Cristandade da Igreja de Cristo, que acontecerá nos dias 05 a 08 de setembro, no(a) Granja Monte Moriá.
+  -É com grande alegria que confirmamos sua inscrição no ${nameEvent} da Igreja de Cristo, que acontecerá nos dias 05 a 08 de setembro, no(a) Granja Monte Moriá.
   
   -Agradecemos sinceramente por se juntar a nós neste momento de crescimento espiritual e compartilhamento de fé. Estamos ansiosos para viver juntos uma experiência significativa e inspiradora durante o evento.
   
@@ -119,7 +121,7 @@ const corpo = (fullName: string, isWorker: boolean) => {
   
   ✔️Se surgir alguma dúvida ou se precisar de assistência adicional, por favor, não hesite em entrar em contato conosco.
   
-  🫂Estamos ansiosos para recebê-lo pessoalmente no 5° Cursilho Feminino da Cristandade da Igreja de Cristo!
+  🫂Estamos ansiosos para recebê-lo pessoalmente no ${nameEvent} da Igreja de Cristo!
   
   🤝Deus conta com você!
   

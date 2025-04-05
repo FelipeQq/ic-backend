@@ -70,6 +70,7 @@ model EventOnUsers {
   userId    String // relation scalar field (used in the `@relation` attribute above)
   event     Event    @relation(fields: [eventId], references: [id])
   eventId   String // relation scalar field (used in the `@relation` attribute above)
+  worker    Boolean?
   paid      Boolean
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
