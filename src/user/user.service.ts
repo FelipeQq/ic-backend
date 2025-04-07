@@ -87,12 +87,15 @@ export class UserService {
             },
           });
         }
+
         if (user && event) {
           await enviarEmailConfirmacao(
             user.fullName,
             user.email,
             worker,
             hasEvent.name,
+            hasEvent.startDate,
+            hasEvent.endDate,
           );
         }
       }

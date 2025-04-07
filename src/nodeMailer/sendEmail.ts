@@ -47,13 +47,36 @@ async function renovarToken(refreshToken: string): Promise<string> {
     throw error;
   }
 }
+function formatDate(startDate: Date, endDate: Date): string {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
 
+  // Formata as datas no modelo desejado
+  const formatter = new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+  });
+  const startDateFormatted = formatter.format(start);
+  const endDateFormatted = formatter.format(end);
+
+  // Extrai apenas o dia e o mês
+  const startDay = startDateFormatted.split(' ')[0];
+  const startMonth = startDateFormatted.split(' ')[2];
+  const endDay = endDateFormatted.split(' ')[0];
+  const endMonth = endDateFormatted.split(' ')[2];
+  if (startMonth !== endMonth) {
+    return `${startDay} de ${startMonth} a ${endDay} de ${endMonth}`;
+  }
+  return `${startDay} a ${endDay} de ${startMonth}`;
+}
 // Função para enviar e-mail de confirmação com anexo
 export async function enviarEmailConfirmacao(
   fullName: string,
   email: string,
   isWorker: boolean,
   nameEvent: string,
+  startDate: Date,
+  endDate: Date,
 ): Promise<void> {
   // Renovar o token de acesso antes de enviar o e-mail
   try {
@@ -72,12 +95,12 @@ export async function enviarEmailConfirmacao(
         accessToken: accessToken,
       },
     });
-
+    const eventDate = formatDate(startDate, endDate);
     const mailOptions: MailOptions = {
       from: USER_CLIENT_SERVER_EMAIL,
       to: email,
       subject: assunto(nameEvent),
-      text: corpo(fullName, isWorker, nameEvent),
+      text: corpo(fullName, isWorker, nameEvent, eventDate),
       attachments: [
         // {
         //   path: anexoPath, // Caminho do anexo no sistema de arquivos
@@ -104,7 +127,12 @@ export async function enviarEmailConfirmacao(
 const assunto = (nameEvent: string): string => {
   return `Confirmação de Inscrição - ${nameEvent} da Igreja de Cristo`;
 };
-const corpo = (fullName: string, isWorker: boolean, nameEvent: string) => {
+const corpo = (
+  fullName: string,
+  isWorker: boolean,
+  nameEvent: string,
+  eventDate: string,
+) => {
   const groupWpp = isWorker
     ? ''
     : 'Link para grupo no WhatsApp: https://chat.whatsapp.com/FM8krrlr32U0wQnYFoZkNL';
@@ -113,7 +141,7 @@ const corpo = (fullName: string, isWorker: boolean, nameEvent: string) => {
   
   Prezado ${fullName},
   
-  -É com grande alegria que confirmamos sua inscrição no ${nameEvent} da Igreja de Cristo, que acontecerá nos dias 05 a 08 de setembro, no(a) Granja Monte Moriá.
+  -É com grande alegria que confirmamos sua inscrição no ${nameEvent} da Igreja de Cristo, que acontecerá nos dias ${eventDate}, no(a) Granja Monte Moriá.
   
   -Agradecemos sinceramente por se juntar a nós neste momento de crescimento espiritual e compartilhamento de fé. Estamos ansiosos para viver juntos uma experiência significativa e inspiradora durante o evento.
   
