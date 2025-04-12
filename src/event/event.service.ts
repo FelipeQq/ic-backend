@@ -33,6 +33,7 @@ export class EventService {
       const formattedUsers = event.users.map((user) => ({
         ...user.user,
         paid: user.paid || false,
+        worker: user.worker || false,
       }));
 
       return {
@@ -100,6 +101,7 @@ export class EventService {
             select: {
               user: true,
               paid: true,
+              worker: true,
             },
           },
         },
