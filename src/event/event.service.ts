@@ -30,7 +30,7 @@ export class EventService {
 
   private handlerReturnEvent(event) {
     function transformData(event) {
-      if (!event.users) return { ...event, users: [] };
+      if (!event?.users) return { ...event, users: [] };
 
       const formattedUsers = event.users.map((user) => ({
         ...user.user,
