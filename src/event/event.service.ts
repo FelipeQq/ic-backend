@@ -28,6 +28,22 @@ export class EventService {
     }
   }
 
+  async removeRelation(idUser: string, idEvent: string) {
+    const relationExists = await this.prisma.eventOnUsers.findFirst({
+      where: { userId: idUser, eventId: idEvent },
+    });
+    if (!relationExists) {
+      throw new NotFoundException('Relation does not exists!');
+    }
+    await this.prisma.eventOnUsers
+      .delete({
+        where: { userId_eventId: { userId: idUser, eventId: idEvent } },
+      })
+      .catch(() => {
+        throw new InternalServerErrorException();
+      });
+  }
+
   private handlerReturnEvent(event) {
     function transformData(event) {
       if (!event?.users) return { ...event, users: [] };
@@ -146,6 +162,30 @@ export class EventService {
       .catch(() => {
         throw new InternalServerErrorException();
       });
+  }
+
+  async removeUserFromEvent(idUser: string, idEvent: string) {
+    const userExists = await this.prisma.user.findUnique({
+      where: {
+        id: idUser,
+      },
+    });
+
+    if (!userExists) {
+      throw new NotFoundException('User does not exists!');
+    }
+
+    const eventExists = await this.prisma.event.findUnique({
+      where: {
+        id: idEvent,
+      },
+    });
+
+    if (!eventExists) {
+      throw new NotFoundException('Event does not exists!');
+    }
+
+    await this.removeRelation(idUser, idEvent);
   }
 
   async remove(id: string) {

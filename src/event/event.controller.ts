@@ -49,6 +49,16 @@ export class EventController {
     return this.eventService.update(id, updateEventDto);
   }
 
+  @ApiOperation({ summary: 'Remove user to event' })
+  @UseGuards(JwtAuthGuard)
+  @Delete(':idEvent/users/:idUser')
+  removeUserFromEvent(
+    @Param('idEvent') idEvent: string,
+    @Param('idUser') idUser: string,
+  ) {
+    return this.eventService.removeUserFromEvent(idUser, idEvent);
+  }
+
   @ApiOperation({ summary: 'Delete event' })
   @UseGuards(JwtAuthGuard)
   @Delete(':id')

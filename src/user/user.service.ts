@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   InternalServerErrorException,
@@ -63,45 +64,52 @@ export class UserService {
 
   async createRelationEvent(idUser: string, idEvent: string, worker: boolean) {
     const user = await this.prisma.user.findFirst({
-      where: {
-        id: idUser,
+      where: { id: idUser },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado!');
+    }
+
+    if (!idEvent) {
+      throw new BadRequestException('ID do evento não fornecido!');
+    }
+
+    const hasEvent = await this.prisma.event.findFirst({
+      where: { id: idEvent },
+    });
+
+    if (!hasEvent) {
+      throw new NotFoundException('Evento não encontrado!');
+    }
+
+    const hasRelationEventOnUser = await this.prisma.eventOnUsers.findFirst({
+      where: { userId: user.id, eventId: idEvent },
+    });
+
+    if (hasRelationEventOnUser) {
+      throw new ConflictException('Usuário já está inscrito neste evento!');
+    }
+
+    const event = await this.prisma.eventOnUsers.create({
+      data: {
+        eventId: idEvent,
+        userId: user.id,
+        paid: false,
+        worker,
       },
     });
 
-    try {
-      const eventId = idEvent;
+    await enviarEmailConfirmacao(
+      user.fullName,
+      user.email,
+      worker,
+      hasEvent.name,
+      hasEvent.startDate,
+      hasEvent.endDate,
+    );
 
-      let event = {};
-      if (eventId) {
-        const hasEvent = await this.prisma.event.findFirst({
-          where: { id: eventId },
-        });
-
-        if (hasEvent) {
-          event = await this.prisma.eventOnUsers.create({
-            data: {
-              eventId,
-              userId: user.id,
-              paid: false,
-              worker,
-            },
-          });
-        }
-
-        if (user && event) {
-          await enviarEmailConfirmacao(
-            user.fullName,
-            user.email,
-            worker,
-            hasEvent.name,
-            hasEvent.startDate,
-            hasEvent.endDate,
-          );
-        }
-      }
-    } catch (error) {
-      throw new InternalServerErrorException();
-    }
+    return event;
   }
 
   async setProfilePhoto(id: string, photoUrl: string): Promise<UserDTO> {
