@@ -43,6 +43,30 @@ export class EventService {
         throw new InternalServerErrorException();
       });
   }
+  async updateUserFromEvent(
+    idUser: string,
+    idEvent: string,
+    data: { worker: boolean },
+  ) {
+    const relationExists = await this.prisma.eventOnUsers.findFirst({
+      where: { userId: idUser, eventId: idEvent },
+    });
+    if (!relationExists) {
+      throw new NotFoundException('Relation does not exists!');
+    }
+    if (data.worker === undefined) {
+      throw new NotFoundException('Worker data is required!');
+    }
+    const worker = data.worker;
+    const eventOnUsers = await this.prisma.eventOnUsers.update({
+      where: { userId_eventId: { userId: idUser, eventId: idEvent } },
+      data: {
+        worker,
+        // paid: relationExists.paid ? false : true,
+      },
+    });
+    return eventOnUsers;
+  }
 
   private handlerReturnEvent(event) {
     function transformData(event) {
