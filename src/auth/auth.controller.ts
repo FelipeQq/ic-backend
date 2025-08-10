@@ -42,6 +42,6 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('admin/validate')
   validateAdminToken(@Req() req: any) {
-    return this.authService.validateUserAdmin(req.user.id);
+    return this.authService.validateUserAdmin(req.user.userId);
   }
 }
