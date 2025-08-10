@@ -54,6 +54,8 @@ model Event {
   price       Float
   workerPrice Float
   capacity    Int?
+  img         String?
+  groupLink   String?
   isActive    Boolean  @default(false)
   createdAt DateTime @default(now())
   updateAt  DateTime @updatedAt
