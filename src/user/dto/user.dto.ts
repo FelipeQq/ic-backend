@@ -42,7 +42,7 @@ export class UserDTO {
   password?: string;
 
   @ApiProperty({
-    example: '10647111111',
+    example: '10647111114',
   })
   @IsString()
   @MinLength(11)
