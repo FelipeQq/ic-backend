@@ -35,6 +35,13 @@ export class EventDto {
   price: number;
 
   @ApiProperty({
+    example: 200,
+    description: 'Capacidade maxima do evento',
+  })
+  @IsInt()
+  capacity: number;
+
+  @ApiProperty({
     example: ['6e893017-aec6-4d16-a816-4789c8d23333'],
     description: 'ids dos usuarios',
   })

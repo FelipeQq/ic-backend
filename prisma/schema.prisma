@@ -53,7 +53,8 @@ model Event {
   endDate     DateTime
   price       Float
   workerPrice Float
-
+  capacity    Int?
+  isActive    Boolean  @default(false)
   createdAt DateTime @default(now())
   updateAt  DateTime @updatedAt
 
