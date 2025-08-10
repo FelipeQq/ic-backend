@@ -1,6 +1,15 @@
-import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UnauthorizedException,
+  UseGuards,
+  Get,
+  Req,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/decorators/auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -24,5 +33,15 @@ export class AuthController {
     );
 
     return this.authService.login(user);
+  }
+  @UseGuards(JwtAuthGuard)
+  @Get('validate')
+  validateToken(@Req() req: any) {
+    return req.user;
+  }
+  @UseGuards(JwtAuthGuard)
+  @Get('admin/validate')
+  validateAdminToken(@Req() req: any) {
+    return this.authService.validateUserAdmin(req.user.id);
   }
 }

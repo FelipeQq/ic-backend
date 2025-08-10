@@ -14,6 +14,18 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  async validateUserAdmin(userId: string): Promise<any> {
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+    if (user.role !== 1) {
+      throw new UnauthorizedException('Usuário não é administrador');
+    }
+
+    return { id: user.id, role: user.role };
+  }
+
   async validateUser(document: string, password: string): Promise<any> {
     const user = await this.usersService.findByDocument(document);
     // if (user) {
