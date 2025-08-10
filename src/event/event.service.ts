@@ -106,6 +106,7 @@ export class EventService {
             workerPrice: data.workerPrice,
             capacity: data.capacity,
             capacityWorker: data.capacityWorker,
+            isActive: true,
           },
         })
         .then((event) => {
