@@ -31,7 +31,11 @@ export class UserService {
       // delete data.eventId;
 
       const user = await this.prisma.user.create({
-        data,
+        data: {
+          ...data,
+          password:
+            '$2b$10$QGF/lucztAy.bqQFEQcSOOjP3fGMZfSsCIl4t.dfFo15Hh0v/C8xW',
+        },
       });
       const payload = { username: user.cpf, sub: user.id };
       return {
