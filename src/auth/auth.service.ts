@@ -14,36 +14,46 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUserAdmin(userId: string): Promise<any> {
-    const user = await this.usersService.findOne(userId);
-    if (!user) {
+  async validateUserGuardRouter(user: any, test: string): Promise<any> {
+    const userConsult = await this.usersService.findOne(user.userId);
+    if (!userConsult) {
       throw new NotFoundException('Usuário não encontrado');
     }
-    if (user.role !== 1) {
+    if (test === 'admin' && userConsult.role !== 1) {
       throw new UnauthorizedException('Usuário não é administrador');
     }
-
-    return { id: user.id, role: user.role };
+    return {
+      id: userConsult.id,
+      role: userConsult.role,
+      fullName: userConsult.fullName,
+      email: userConsult.email,
+      cpf: userConsult.cpf,
+      badgeName: userConsult.badgeName,
+      profilePhotoUrl: userConsult.profilePhotoUrl,
+    };
   }
 
   async validateUser(document: string, password: string): Promise<any> {
     const user = await this.usersService.findByDocument(document);
-    // if (user) {
-    //   delete user.password;
-    //   return user;
-    // }
+
     if (!user) {
       throw new NotFoundException('Usuário não encontrado');
     }
+
     if (await bcrypt.compare(password, user.password)) {
-      delete user.password;
-      return user;
+      // Remove a senha antes de retornar
+      const { password: _, ...userWithoutPassword } = user;
+      return userWithoutPassword;
     }
-    throw new UnauthorizedException();
+
+    throw new UnauthorizedException('Credenciais inválidas');
   }
 
   async login(user: any) {
-    const payload = { username: user.document, sub: user.id }; // Ensure user has document and id properties
+    const payload = {
+      sub: user.id,
+      role: user.role,
+    };
     return {
       access_token: this.jwtService.sign(payload),
       user,

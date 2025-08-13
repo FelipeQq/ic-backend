@@ -6,6 +6,7 @@ import {
   UseGuards,
   Get,
   Req,
+  NotFoundException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
@@ -37,11 +38,13 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('validate')
   validateToken(@Req() req: any) {
-    return req.user;
+    const user = req.user;
+    return this.authService.validateUserGuardRouter(user, 'user');
   }
   @UseGuards(JwtAuthGuard)
   @Get('admin/validate')
   validateAdminToken(@Req() req: any) {
-    return this.authService.validateUserAdmin(req.user.userId);
+    const user = req.user;
+    return this.authService.validateUserGuardRouter(user, 'admin');
   }
 }
