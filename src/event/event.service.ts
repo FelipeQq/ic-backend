@@ -119,6 +119,55 @@ export class EventService {
     }
   }
 
+  async findInsightsEvents() {
+    const events = await this.prisma.event.findMany({
+      select: {
+        isActive: true,
+        id: true,
+        name: true,
+        startDate: true,
+        users: {
+          select: {
+            createdAt: true, // precisa estar no select para calcular
+          },
+        },
+      }, // caso use TS, pois não existe "createdAt" no include, é no select
+    });
+
+    //calcular a media de ventos por trimestre
+    const trimestres = [0, 0, 0, 0]; // índice 0 = 1º tri, 1 = 2º tri...
+
+    events.forEach((event) => {
+      const eventDate = new Date(event.startDate);
+      const quarter = Math.floor(eventDate.getMonth() / 3); // 0–3
+      trimestres[quarter]++;
+    });
+
+    // Soma total de eventos e divide por 4 trimestres
+    const totalEventos = trimestres.reduce((acc, val) => acc + val, 0);
+    const eventsInCurrentQuarter = totalEventos / 4;
+
+    // Calcula o tempo médio para lotar por evento individual
+    const totalEventsActive = events.filter((e) => e.isActive).length;
+    const totalEvents = events.length;
+    const totalTimeToFill = events.reduce((acc, event) => {
+      if (event.users.length > 0) {
+        const timeToFill =
+          event.users[event.users.length - 1].createdAt.getTime() -
+          event.users[0].createdAt.getTime();
+        return acc + timeToFill / (1000 * 60 * 60); // converte para horas
+      }
+      return acc;
+    }, 0);
+
+    return {
+      totalEvents,
+      totalEventsActive,
+      timeToFillHours: (totalTimeToFill / totalEvents).toFixed(2) || 0,
+      eventsInCurrentQuarter,
+    };
+  }
+
   async findAll(filters?: Partial<EventDto>) {
     return await this.prisma.event.findMany({
       where: {
@@ -130,6 +179,12 @@ export class EventService {
             userId: true,
             worker: true,
             paid: true,
+          },
+        },
+        _count: {
+          select: {
+            bedrooms: true,
+            Team: true,
           },
         },
       },

@@ -34,6 +34,12 @@ export class EventController {
     const events = await this.eventService.findAll(filters);
     return events;
   }
+  @ApiOperation({ summary: 'Get insights events' })
+  @Get('insights')
+  @UseGuards(JwtAuthGuard)
+  findInsightsEvents() {
+    return this.eventService.findInsightsEvents();
+  }
 
   @ApiOperation({ summary: 'Event by id' })
   @UseGuards(JwtAuthGuard)
