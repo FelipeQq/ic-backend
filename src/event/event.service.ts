@@ -120,22 +120,21 @@ export class EventService {
   }
 
   async findAll(filters?: Partial<EventDto>) {
-    return await this.prisma.event
-      .findMany({
-        where: {
-          name: { contains: filters?.name || undefined },
-        },
-        include: {
-          users: {
-            select: {
-              user: true,
-              worker: true,
-              paid: true,
-            },
+    return await this.prisma.event.findMany({
+      where: {
+        name: { contains: filters?.name || undefined },
+      },
+      include: {
+        users: {
+          select: {
+            userId: true,
+            worker: true,
+            paid: true,
           },
         },
-      })
-      .then((events) => this.handlerReturnEvent(events));
+      },
+    });
+    //.then((events) => this.handlerReturnEvent(events));
   }
 
   async findOne(id: string) {
