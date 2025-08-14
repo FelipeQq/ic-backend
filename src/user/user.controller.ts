@@ -54,6 +54,13 @@ export class UserController {
     return users;
   }
 
+  @ApiOperation({ summary: 'Get insights users' })
+  @UseGuards(JwtAuthGuard)
+  @Get('insights')
+  async findInsightsEvents() {
+    return this.userService.findInsightsEvents();
+  }
+
   @ApiOperation({ summary: 'User by id' })
   @UseGuards(JwtAuthGuard)
   @Get(':id')

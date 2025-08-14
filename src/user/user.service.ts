@@ -186,4 +186,34 @@ export class UserService {
       throw new InternalServerErrorException();
     }
   }
+  async findInsightsEvents() {
+    // verifica quais usuarios tem recorrencia em eventos em um ano
+    const currentYear = new Date().getFullYear() - 1;
+    const usersWithEvents = await this.prisma.user.count({
+      where: {
+        events: {
+          some: {
+            event: {
+              startDate: {
+                gte: new Date(`${currentYear}-01-01`),
+                lt: new Date(`${currentYear + 1}-01-01`),
+              },
+            },
+          },
+        },
+      },
+    });
+    const users = await this.prisma.user.findMany({
+      select: {
+        id: true,
+        role: true,
+      },
+    });
+
+    return {
+      totalUsers: users.length,
+      totalUsersAdmin: users.filter((user) => user.role === 1).length,
+      usersWithEvents,
+    };
+  }
 }
