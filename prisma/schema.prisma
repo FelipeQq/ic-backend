@@ -83,11 +83,13 @@ model EventOnUsers {
 }
 
 model Bedrooms {
-  id   String  @id @default(uuid())
-  note String?
-
-  event   Event  @relation(fields: [eventId], references: [id])
-  eventId String
+  id       String   @id @default(uuid())
+  name     String   @default("Quarto sem nome")
+  note     String?
+  capacity Int?
+  tag      String[]
+  event    Event    @relation(fields: [eventId], references: [id])
+  eventId  String
 
   users BedroomsOnUsers[]
 
@@ -104,11 +106,12 @@ model BedroomsOnUsers {
 }
 
 model Team {
-  id   String @id @default(uuid())
-  name String
-
-  event   Event  @relation(fields: [eventId], references: [id])
-  eventId String
+  id       String  @id @default(uuid())
+  name     String
+  capacity Int?
+  note     String?
+  event    Event   @relation(fields: [eventId], references: [id])
+  eventId  String
 
   users TeamOnUsers[]
 
@@ -116,10 +119,16 @@ model Team {
 }
 
 model TeamOnUsers {
-  user   User   @relation(fields: [userId], references: [id])
+  user   User     @relation(fields: [userId], references: [id])
   userId String // relation scalar field (used in the `@relation` attribute above)
-  team   Team   @relation(fields: [teamId], references: [id])
+  team   Team     @relation(fields: [teamId], references: [id])
   teamId String // relation scalar field (used in the `@relation` attribute above)
+  role   TeamRole @default(MEMBER)
 
   @@id([userId, teamId])
+}
+
+enum TeamRole {
+  MEMBER
+  LEADER
 }
