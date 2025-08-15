@@ -55,10 +55,21 @@ export class BedroomsService {
           eventId,
         },
         include: {
-          event: true,
+          event: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           users: {
             select: {
-              user: true,
+              user: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  profilePhotoUrl: true,
+                },
+              },
             },
           },
         },
@@ -76,10 +87,20 @@ export class BedroomsService {
       .findFirst({
         where: { id },
         include: {
-          event: true,
+          event: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           users: {
             select: {
-              user: true,
+              user: {
+                select: {
+                  id: true,
+                  fullName: true,
+                },
+              },
             },
           },
         },

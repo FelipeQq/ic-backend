@@ -3,29 +3,49 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma';
+import { PrismaService, TeamRole } from '../prisma';
 import { TeammDto } from './dto/team.dto';
 
 @Injectable()
 export class TeamService {
   constructor(private prisma: PrismaService) {}
 
-  async createRelations(usersIds: string[], idTeam: string) {
-    const existRelation = await this.prisma.teamOnUsers.findMany({
-      where: { userId: { in: usersIds }, teamId: idTeam },
-    });
+  async createRelations(
+    usersLeadersIds: string[],
+    usersIds: string[],
+    idTeam: string,
+  ) {
+    const membersToAdd = usersIds.map((id) => ({
+      userId: id,
+      teamId: idTeam,
+      role: TeamRole.MEMBER,
+    }));
 
-    const getUsersId = existRelation.map((e) => e.userId);
+    const leadersToAdd = usersLeadersIds.map((id) => ({
+      userId: id,
+      teamId: idTeam,
+      role: TeamRole.LEADER,
+    }));
 
-    const filterIds = usersIds.filter((id) => !getUsersId.includes(id));
+    // prioridade para role de lider caso o usuario esteja nas duas listas
+    const uniqueUsers = Array.from(
+      new Map(
+        [...membersToAdd, ...leadersToAdd].map((item) => [item.userId, item]),
+      ).values(),
+    );
 
-    if (filterIds.length > 0) {
-      await this.prisma.teamOnUsers.createMany({
-        data: filterIds.map((id: string) => {
-          return { userId: id, teamId: idTeam };
+    // upsert para criar ou atualizar role
+    await Promise.all(
+      uniqueUsers.map((user) =>
+        this.prisma.teamOnUsers.upsert({
+          where: {
+            userId_teamId: { userId: user.userId, teamId: user.teamId },
+          },
+          create: user,
+          update: { role: user.role },
         }),
-      });
-    }
+      ),
+    );
   }
 
   async create(idEvent: string, createTeam: TeammDto) {
@@ -35,10 +55,16 @@ export class TeamService {
           data: {
             eventId: idEvent,
             name: createTeam.name,
+            note: createTeam.note,
+            capacity: createTeam.capacity,
           },
         })
         .then((team) => {
-          this.createRelations(createTeam.usersId, team.id);
+          this.createRelations(
+            createTeam.usersLeadersId,
+            createTeam.usersId,
+            team.id,
+          );
         });
     } catch {
       throw new InternalServerErrorException();
@@ -52,10 +78,22 @@ export class TeamService {
           eventId,
         },
         include: {
-          event: true,
+          event: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           users: {
             select: {
-              user: true,
+              role: true,
+              user: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  profilePhotoUrl: true,
+                },
+              },
             },
           },
         },
@@ -63,7 +101,7 @@ export class TeamService {
       .then((teams) =>
         teams.map((team) => ({
           ...team,
-          users: team.users.map((e) => e.user),
+          users: team.users.map((e) => ({ ...e.user, roleTeam: e.role })),
         })),
       );
   }
@@ -73,15 +111,30 @@ export class TeamService {
       .findFirst({
         where: { id },
         include: {
-          event: true,
+          event: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           users: {
             select: {
-              user: true,
+              role: true,
+              user: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  profilePhotoUrl: true,
+                },
+              },
             },
           },
         },
       })
-      .then((team) => ({ ...team, users: team?.users?.map((e) => e.user) }));
+      .then((team) => ({
+        ...team,
+        users: team.users.map((e) => ({ ...e.user, roleTeam: e.role })),
+      }));
   }
 
   async update(idEvent: string, idTeam: string, updateTeamDto: TeammDto) {
@@ -100,7 +153,7 @@ export class TeamService {
         teamId: idTeam,
         NOT: {
           userId: {
-            in: updateTeamDto.usersId,
+            in: [...updateTeamDto.usersId, ...updateTeamDto.usersLeadersId],
           },
         },
       },
@@ -111,6 +164,8 @@ export class TeamService {
         data: {
           eventId: idEvent,
           name: updateTeamDto.name,
+          note: updateTeamDto.note,
+          capacity: updateTeamDto.capacity,
         },
         where: {
           id: idTeam,
@@ -124,7 +179,11 @@ export class TeamService {
         },
       })
       .then(() => {
-        this.createRelations(updateTeamDto.usersId, idTeam);
+        this.createRelations(
+          updateTeamDto.usersLeadersId,
+          updateTeamDto.usersId,
+          idTeam,
+        );
       })
       .catch(() => {
         throw new InternalServerErrorException();

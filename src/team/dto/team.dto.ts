@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsString } from 'class-validator';
+import { IsArray, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class TeammDto {
   @ApiProperty({
@@ -12,6 +12,20 @@ export class TeammDto {
   event: any;
 
   user: any;
+  @ApiProperty({
+    example: 'Lorem ipsum dolor sit amet',
+    description: 'Nota do time',
+  })
+  @IsString()
+  @IsOptional()
+  note: string;
+
+  @ApiProperty({
+    example: 2,
+    description: 'Capacidade do time',
+  })
+  @IsNumber()
+  capacity: number;
 
   @ApiProperty({
     example: [1, 2],
@@ -19,4 +33,11 @@ export class TeammDto {
   })
   @IsArray()
   usersId: string[];
+
+  @ApiProperty({
+    example: [1, 2],
+    description: 'ids dos liders',
+  })
+  @IsArray()
+  usersLeadersId: string[];
 }
