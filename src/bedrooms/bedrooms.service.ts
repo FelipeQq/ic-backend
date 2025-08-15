@@ -35,6 +35,9 @@ export class BedroomsService {
           data: {
             eventId: idEvent,
             note: createBedroom.note,
+            name: createBedroom.name,
+            capacity: createBedroom.capacity,
+            tag: createBedroom.tags,
           },
         })
         .then((bedroom) => {
@@ -119,6 +122,9 @@ export class BedroomsService {
       data: {
         eventId: idEvent,
         note: updateBedroomDto.note,
+        name: updateBedroomDto.name,
+        capacity: updateBedroomDto.capacity,
+        tag: updateBedroomDto.tags,
       },
       where: {
         id: idBedroom,
