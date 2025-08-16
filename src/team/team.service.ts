@@ -35,37 +35,39 @@ export class TeamService {
     );
 
     // upsert para criar ou atualizar role
-    await Promise.all(
-      uniqueUsers.map((user) =>
-        this.prisma.teamOnUsers.upsert({
-          where: {
-            userId_teamId: { userId: user.userId, teamId: user.teamId },
-          },
-          create: user,
-          update: { role: user.role },
-        }),
-      ),
-    );
+    await this.prisma
+      .$transaction(
+        uniqueUsers.map((user) =>
+          this.prisma.teamOnUsers.upsert({
+            where: {
+              userId_teamId: { userId: user.userId, teamId: user.teamId },
+            },
+            create: user,
+            update: { role: user.role },
+          }),
+        ),
+      )
+      .catch(() => {
+        throw new InternalServerErrorException();
+      });
   }
 
   async create(idEvent: string, createTeam: TeammDto) {
     try {
-      await this.prisma.team
-        .create({
-          data: {
-            eventId: idEvent,
-            name: createTeam.name,
-            note: createTeam.note,
-            capacity: createTeam.capacity,
-          },
-        })
-        .then((team) => {
-          this.createRelations(
-            createTeam.usersLeadersId,
-            createTeam.usersId,
-            team.id,
-          );
-        });
+      const team = await this.prisma.team.create({
+        data: {
+          eventId: idEvent,
+          name: createTeam.name,
+          note: createTeam.note,
+          capacity: createTeam.capacity,
+        },
+      });
+
+      await this.createRelations(
+        createTeam.usersLeadersId,
+        createTeam.usersId,
+        team.id,
+      );
     } catch {
       throw new InternalServerErrorException();
     }
@@ -138,29 +140,29 @@ export class TeamService {
   }
 
   async update(idEvent: string, idTeam: string, updateTeamDto: TeammDto) {
-    const teamExist = await this.prisma.team.findUnique({
-      where: {
-        id: idTeam,
-      },
-    });
+    try {
+      const teamExist = await this.prisma.team.findUnique({
+        where: {
+          id: idTeam,
+        },
+      });
 
-    if (!teamExist) {
-      throw new NotFoundException('Team does not exists!');
-    }
+      if (!teamExist) {
+        throw new NotFoundException('Team does not exists!');
+      }
 
-    await this.prisma.teamOnUsers.deleteMany({
-      where: {
-        teamId: idTeam,
-        NOT: {
-          userId: {
-            in: [...updateTeamDto.usersId, ...updateTeamDto.usersLeadersId],
+      await this.prisma.teamOnUsers.deleteMany({
+        where: {
+          teamId: idTeam,
+          NOT: {
+            userId: {
+              in: [...updateTeamDto.usersId, ...updateTeamDto.usersLeadersId],
+            },
           },
         },
-      },
-    });
+      });
 
-    await this.prisma.team
-      .update({
+      const team = await this.prisma.team.update({
         data: {
           eventId: idEvent,
           name: updateTeamDto.name,
@@ -177,17 +179,15 @@ export class TeamService {
             },
           },
         },
-      })
-      .then(() => {
-        this.createRelations(
-          updateTeamDto.usersLeadersId,
-          updateTeamDto.usersId,
-          idTeam,
-        );
-      })
-      .catch(() => {
-        throw new InternalServerErrorException();
       });
+      await this.createRelations(
+        updateTeamDto.usersLeadersId,
+        updateTeamDto.usersId,
+        team.id,
+      );
+    } catch {
+      throw new InternalServerErrorException();
+    }
   }
 
   async delete(teamId: string) {
