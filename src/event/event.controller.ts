@@ -55,6 +55,13 @@ export class EventController {
     return this.eventService.update(id, updateEventDto);
   }
 
+  @ApiOperation({ summary: 'Get users by event' })
+  @UseGuards(JwtAuthGuard)
+  @Get(':idEvent/users')
+  async findUsers(@Param('idEvent') idEvent: string) {
+    return this.eventService.findUsers(idEvent);
+  }
+
   @ApiOperation({ summary: 'Remove user to event' })
   @UseGuards(JwtAuthGuard)
   @Delete(':idEvent/users/:idUser')

@@ -90,6 +90,30 @@ export class EventService {
 
     return transformData(event);
   }
+  private handleReturnUsersByEvent(users, idEvent) {
+    return users.map((user: any) => {
+      const userBedrooms =
+        user.bedrooms
+          ?.filter((b: any) => b.bedrooms?.eventId === idEvent)
+          .map((b: any) => b.bedrooms) ?? [];
+      const userTeamOnUsers =
+        user.TeamOnUsers?.filter((t: any) => t.team?.eventId === idEvent).map(
+          (t: any) => t.team,
+        ) ?? [];
+      const userEvent = user.events?.find((e: any) => e.eventId === idEvent);
+
+      delete user.events;
+      delete user.bedrooms;
+      delete user.TeamOnUsers;
+      return {
+        ...user,
+        bedrooms: userBedrooms,
+        teams: userTeamOnUsers,
+        worker: userEvent?.worker || false,
+        paid: userEvent?.paid || false,
+      };
+    });
+  }
 
   async create(data: EventDto) {
     try {
@@ -283,5 +307,50 @@ export class EventService {
     await this.prisma.event.delete({ where: { id } }).catch(() => {
       throw new InternalServerErrorException();
     });
+  }
+  async findUsers(idEvent: string) {
+    return this.prisma.user
+      .findMany({
+        where: {
+          events: {
+            some: {
+              eventId: idEvent,
+            },
+          },
+        },
+        include: {
+          events: {
+            select: {
+              eventId: true,
+              paid: true,
+              worker: true,
+            },
+          },
+          bedrooms: {
+            select: {
+              bedrooms: {
+                select: {
+                  name: true,
+                  id: true,
+                  eventId: true,
+                },
+              },
+            },
+          },
+
+          TeamOnUsers: {
+            select: {
+              team: {
+                select: {
+                  name: true,
+                  id: true,
+                  eventId: true,
+                },
+              },
+            },
+          },
+        },
+      })
+      .then((users) => this.handleReturnUsersByEvent(users, idEvent));
   }
 }
