@@ -132,6 +132,18 @@ export class UserService {
       orderBy: {
         role: 'asc',
       },
+      include: {
+        events: {
+          include: {
+            event: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     return users;
