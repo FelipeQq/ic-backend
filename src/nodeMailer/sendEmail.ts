@@ -151,10 +151,8 @@ const corpo = (
   
   🫂Estamos ansiosos para recebê-lo pessoalmente no ${nameEvent} da Igreja de Cristo!
   
-  🤝Deus conta com você!
-  
-  ${groupWpp}
-  
+  🤝Deus conta com você!  
+    
   Pr. Kleber Junior de Sousa
   Lider Espiritual
   84 99170-1727
