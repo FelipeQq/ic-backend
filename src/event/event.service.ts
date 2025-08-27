@@ -150,9 +150,12 @@ export class EventService {
         id: true,
         name: true,
         startDate: true,
+        capacity: true,
+        capacityWorker: true,
         users: {
           select: {
             createdAt: true, // precisa estar no select para calcular
+            worker: true,
           },
         },
       }, // caso use TS, pois não existe "createdAt" no include, é no select
@@ -174,20 +177,87 @@ export class EventService {
     // Calcula o tempo médio para lotar por evento individual
     const totalEventsActive = events.filter((e) => e.isActive).length;
     const totalEvents = events.length;
-    const totalTimeToFill = events.reduce((acc, event) => {
-      if (event.users.length > 0) {
-        const timeToFill =
-          event.users[event.users.length - 1].createdAt.getTime() -
-          event.users[0].createdAt.getTime();
-        return acc + timeToFill / (1000 * 60 * 60); // converte para horas
-      }
-      return acc;
-    }, 0);
+    // const totalTimeToFill = events.reduce(
+    //   (acc, event) => {
+    //     const usersCount = event.users
+    //       .filter((u) => !u.worker)
+    //       .sort((a, b) => {
+    //         if (a.createdAt < b.createdAt) return -1;
+    //         if (a.createdAt > b.createdAt) return 1;
+    //         return 0;
+    //       });
+    //     const usersCountWorker = event.users
+    //       .filter((u) => u.worker)
+    //       .sort((a, b) => {
+    //         if (a.createdAt < b.createdAt) return -1;
+    //         if (a.createdAt > b.createdAt) return 1;
+    //         return 0;
+    //       });
+    //     if (
+    //       usersCount.length == event.capacity &&
+    //       usersCountWorker.length == event.capacityWorker
+    //     ) {
+    //       const timeToFill =
+    //         usersCount[usersCount.length - 1].createdAt.getTime() -
+    //         usersCount[0].createdAt.getTime();
+    //       // return acc[0] + timeToFill / (1000 * 60 * 60); // converte para horas
+
+    //       const timeToFillWorker =
+    //         usersCountWorker[usersCountWorker.length - 1].createdAt.getTime() -
+    //         usersCountWorker[0].createdAt.getTime();
+
+    //       //return acc[1] + timeToFillWorker / (1000 * 60 * 60); // converte para horas
+    //       return [
+    //         acc[0] + timeToFill / (1000 * 60 * 60),
+    //         acc[1] + timeToFillWorker / (1000 * 60 * 60),
+    //       ];
+    //     }
+
+    //     return acc;
+    //   },
+    //   [0, 0],
+    // );
+
+    const totalTimeToFill = events.reduce(
+      (acc, event) => {
+        const getTimeToFill = (
+          users: { createdAt: Date }[],
+          capacity: number,
+        ) => {
+          if (users.length !== capacity) return null;
+
+          let min = Infinity;
+          let max = -Infinity;
+
+          for (const u of users) {
+            const t = u.createdAt.getTime();
+            if (t < min) min = t;
+            if (t > max) max = t;
+          }
+
+          return (max - min) / (1000 * 60 * 60); // horas
+        };
+
+        const timeToFill = getTimeToFill(
+          event.users.filter((u) => !u.worker),
+          event.capacity,
+        );
+
+        const timeToFillWorker = getTimeToFill(
+          event.users.filter((u) => u.worker),
+          event.capacityWorker,
+        );
+
+        return [acc[0] + (timeToFill ?? 0), acc[1] + (timeToFillWorker ?? 0)];
+      },
+      [0, 0],
+    );
 
     return {
       totalEvents,
       totalEventsActive,
-      timeToFillHours: (totalTimeToFill / totalEvents).toFixed(2) || 0,
+      timeToFillHours: (totalTimeToFill[0] / totalEvents).toFixed(2) || 0,
+      timeToFillWorkerHours: (totalTimeToFill[1] / totalEvents).toFixed(2) || 0,
       eventsInCurrentQuarter,
     };
   }
