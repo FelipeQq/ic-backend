@@ -23,6 +23,7 @@ export class UserDTO {
     description: 'E-mail',
   })
   @IsEmail()
+  @IsOptional()
   email: string;
 
   @ApiProperty({
@@ -30,6 +31,7 @@ export class UserDTO {
     description: 'Nome do usuario',
   })
   @IsString()
+  @IsOptional()
   @MinLength(5)
   fullName: string;
 
@@ -47,12 +49,14 @@ export class UserDTO {
   @IsString()
   @MinLength(11)
   @MaxLength(11)
+  @IsOptional()
   cpf: string;
 
   @ApiProperty({
     example: '1993-11-20',
   })
   @IsString()
+  @IsOptional()
   birthday: Date;
 
   @ApiProperty({
@@ -60,6 +64,7 @@ export class UserDTO {
     description: 'Papel - 1 - Admin',
   })
   @IsInt()
+  @IsOptional()
   role?: number;
 
   @ApiProperty({
@@ -68,18 +73,21 @@ export class UserDTO {
   @IsString()
   @MinLength(11)
   @MaxLength(11)
+  @IsOptional()
   cellphone: string;
 
   @ApiProperty({
     example: true,
   })
   @IsBoolean()
+  @IsOptional()
   diabetes: boolean;
 
   @ApiProperty({
     example: true,
   })
   @IsBoolean()
+  @IsOptional()
   hypertensive: boolean;
 
   @ApiProperty({
@@ -88,6 +96,7 @@ export class UserDTO {
   })
   @IsString()
   @MinLength(2)
+  @IsOptional()
   profession: string;
 
   @ApiProperty({
@@ -95,6 +104,7 @@ export class UserDTO {
     description: 'Bairro',
   })
   @IsString()
+  @IsOptional()
   neighborhood: string;
 
   @ApiProperty({
@@ -103,6 +113,7 @@ export class UserDTO {
   })
   @IsString()
   @MinLength(2)
+  @IsOptional()
   city: string;
 
   @ApiProperty({
@@ -111,12 +122,14 @@ export class UserDTO {
   })
   @IsString()
   @MinLength(2)
+  @IsOptional()
   state: string;
 
   @ApiProperty({
     example: false,
   })
   @IsBoolean()
+  @IsOptional()
   worker: boolean;
 
   @ApiProperty({

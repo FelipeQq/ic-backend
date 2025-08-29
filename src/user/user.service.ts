@@ -169,14 +169,14 @@ export class UserService {
       throw new NotFoundException('User does not exists!');
     }
 
-    const existEventRelation = await this.prisma.eventOnUsers.findFirst({
-      where: { userId: id, eventId: data.eventId },
-    });
+    // const existEventRelation = await this.prisma.eventOnUsers.findFirst({
+    //   where: { userId: id, eventId: data.eventId },
+    // });
 
     try {
-      data.birthday = new Date(data.birthday);
-      const eventId = data.eventId;
-      delete data.eventId;
+      // data.birthday = new Date(data.birthday);
+      // const eventId = data.eventId;
+      // delete data.eventId;
 
       await this.prisma.user.update({
         data,
@@ -185,16 +185,17 @@ export class UserService {
         },
       });
 
-      if (eventId && !existEventRelation) {
-        await this.prisma.eventOnUsers.create({
-          data: {
-            eventId,
-            userId: id,
-            paid: false,
-          },
-        });
-      }
+      // if (eventId && !existEventRelation) {
+      //   await this.prisma.eventOnUsers.create({
+      //     data: {
+      //       eventId,
+      //       userId: id,
+      //       paid: false,
+      //     },
+      //   });
+      // }
     } catch (error) {
+      console.log(error);
       throw new InternalServerErrorException();
     }
   }
