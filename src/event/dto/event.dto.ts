@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsString } from 'class-validator';
+import { IsBoolean, IsInt, IsString } from 'class-validator';
 export class EventDto {
   @ApiProperty({
     example: 'Retiro 2023',
@@ -7,6 +7,20 @@ export class EventDto {
   })
   @IsString()
   name: string;
+
+  @ApiProperty({
+    example: 'https://chat.whatsapp.com/xxxxxxxxxxxxxxxxxxxx',
+    description: 'Link do grupo do whatsapp',
+  })
+  @IsString()
+  groupLink: string;
+
+  @ApiProperty({
+    example: true,
+    description: 'Status do evento (ativo/inativo)',
+  })
+  @IsBoolean()
+  isActive: boolean;
 
   @ApiProperty({
     example: '2023-02-17',

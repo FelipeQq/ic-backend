@@ -324,6 +324,11 @@ export class EventService {
           startDate: updateEvent.startDate,
           name: updateEvent.name,
           price: updateEvent.price,
+          isActive: updateEvent.isActive,
+          workerPrice: updateEvent.workerPrice,
+          capacity: updateEvent.capacity,
+          capacityWorker: updateEvent.capacityWorker,
+          groupLink: updateEvent.groupLink,
         },
         where: {
           id,
