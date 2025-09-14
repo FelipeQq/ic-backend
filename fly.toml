@@ -4,7 +4,7 @@
 #
 
 app = 'ic-backend'
-primary_region = 'gru'
+primary_region = 'gig'
 
 [build]
 
