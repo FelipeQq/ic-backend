@@ -94,6 +94,8 @@ export class TeamService {
                   id: true,
                   fullName: true,
                   profilePhotoUrl: true,
+                  cellphone: true,
+                  birthday: true,
                 },
               },
             },
