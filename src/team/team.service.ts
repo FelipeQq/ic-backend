@@ -96,6 +96,7 @@ export class TeamService {
                   profilePhotoUrl: true,
                   cellphone: true,
                   birthday: true,
+                  email: true,
                 },
               },
             },
