@@ -17,39 +17,28 @@ export class EventService {
     eventId: string,
     registrationTypeId: string,
   ) {
-    return await this.prisma.$transaction(async (tx) => {
-      //verifica se o usuário existe
-      const user = await tx.user.findUnique({
-        where: { id: userId },
-      });
+    const result = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({ where: { id: userId } });
+      if (!user) throw new NotFoundException('User not found');
 
-      if (!user) {
-        throw new NotFoundException('User not found');
-      }
-      //verifica se o evento existe
-      const hasEvent = await tx.event.findFirst({
-        where: { id: eventId },
-      });
+      const event = await tx.event.findUnique({ where: { id: eventId } });
+      if (!event) throw new NotFoundException('Event not found');
 
-      if (!hasEvent) {
-        throw new NotFoundException('Event not found');
-      }
-      //verifica se o usuário já está registrado no evento
-      const existingRelation = await tx.eventOnUsers.findFirst({
-        where: { userId, eventId },
+      const alreadyRegistered = await tx.eventOnUsers.findUnique({
+        where: { userId_eventId: { userId, eventId } },
       });
-
-      if (existingRelation) {
-        throw new BadRequestException('User is already registered in event');
+      if (alreadyRegistered) {
+        throw new BadRequestException('User already registered');
       }
-      // Lock no tipo de inscrição
+
+      // 🔒 Lock no tipo de inscrição
       const [registrationType] = await tx.$queryRaw<
         { capacity: number | null }[]
       >`
       SELECT capacity
       FROM registration_types
       WHERE id = ${registrationTypeId}
-      AND "eventId" = ${eventId}
+        AND "eventId" = ${eventId}
       FOR UPDATE
     `;
 
@@ -57,7 +46,14 @@ export class EventService {
         throw new NotFoundException('Registration type not found');
       }
 
-      //  Conta inscritos (já dentro do lock)
+      // 🔒 Lock nos inscritos
+      await tx.$queryRaw`
+      SELECT 1
+      FROM event_on_users
+      WHERE "registrationTypeId" = ${registrationTypeId}
+      FOR UPDATE
+    `;
+
       const count = await tx.eventOnUsers.count({
         where: { registrationTypeId },
       });
@@ -66,27 +62,37 @@ export class EventService {
         registrationType.capacity !== null &&
         count >= registrationType.capacity
       ) {
-        throw new BadRequestException('Registration type capacity reached');
+        return {
+          type: 'WAITLIST',
+          data: await tx.waitlist.create({
+            data: { userId, eventId, registrationTypeId },
+          }),
+          user,
+          event,
+        };
       }
 
-      // 3️⃣ Cria relação (seguro)
-      const inscricao = await tx.eventOnUsers.create({
-        data: {
-          userId,
-          eventId,
-          registrationTypeId,
-        },
-      });
-      await enviarEmailConfirmacao(
-        user.fullName,
-        user.email,
-        false, // mudar
-        hasEvent.name,
-        hasEvent.startDate,
-        hasEvent.endDate,
-      );
-      return inscricao;
+      return {
+        type: 'REGISTERED',
+        data: await tx.eventOnUsers.create({
+          data: { userId, eventId, registrationTypeId },
+        }),
+        user,
+        event,
+      };
     });
+
+    // 📧 Fora da transação
+    await enviarEmailConfirmacao(
+      result.user.fullName,
+      result.user.email,
+      false,
+      result.event.name,
+      result.event.startDate,
+      result.event.endDate,
+    );
+
+    return result.data;
   }
 
   async removeRelation(idUser: string, idEvent: string) {
