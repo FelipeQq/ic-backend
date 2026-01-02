@@ -22,12 +22,16 @@ import * as admin from 'firebase-admin';
 import { UserService } from './user.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from 'src/decorators/auth.guard';
+import { EventService } from 'src/event/event.service';
 
 @ApiTags('users')
 @ApiBearerAuth()
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly eventService: EventService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create user' })
@@ -41,9 +45,13 @@ export class UserController {
   async createRelationEvent(
     @Param('idUser') idUser: string,
     @Param('idEvent') idEvent: string,
-    @Body('worker') worker: boolean,
+    @Body('registrationTypeId') registrationTypeId: string,
   ) {
-    return this.userService.createRelationEvent(idUser, idEvent, worker);
+    return this.eventService.registerUserInEvent(
+      idUser,
+      idEvent,
+      registrationTypeId,
+    );
   }
 
   @ApiOperation({ summary: 'All users' })

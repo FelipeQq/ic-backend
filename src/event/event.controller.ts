@@ -78,7 +78,7 @@ export class EventController {
   updateUserFromEvent(
     @Param('idEvent') idEvent: string,
     @Param('idUser') idUser: string,
-    @Body() data: { worker: boolean },
+    @Body() data: { registrationTypeId: string },
   ) {
     return this.eventService.updateUserFromEvent(idUser, idEvent, data);
   }

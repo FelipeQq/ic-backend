@@ -35,36 +35,21 @@ export class EventDto {
   endDate: Date;
 
   @ApiProperty({
-    example: 200,
-    description: 'Preco para quem vai trabalhar',
-  })
-  @IsInt()
-  workerPrice: number;
-
-  @ApiProperty({
-    example: 200,
-    description: 'Preco do evento',
-  })
-  @IsInt()
-  price: number;
-
-  @ApiProperty({
-    example: 200,
-    description: 'Capacidade maxima do evento',
-  })
-  @IsInt()
-  capacity: number;
-
-  @ApiProperty({
-    example: 50,
-    description: 'Capacidade maxima de trabalhadores do evento',
-  })
-  @IsInt()
-  capacityWorker: number;
-
-  @ApiProperty({
-    example: ['6e893017-aec6-4d16-a816-4789c8d23333'],
-    description: 'ids dos usuarios',
+    example: ['userId1', 'userId2'],
+    description: 'Lista de IDs dos usuários associados ao evento',
   })
   users?: string[];
+  @ApiProperty({
+    example: [
+      { description: 'standard', price: 100, capacity: 50 },
+      { description: 'vip', price: 200, capacity: 20 },
+    ],
+    description: 'Tipos de inscrição disponíveis para o evento',
+  })
+  registrationTypes?: {
+    id?: string;
+    description: string;
+    price: number;
+    capacity: number;
+  }[];
 }

@@ -75,8 +75,8 @@ model EventOnUsers {
   payment            Payment?
   discount           Discounts?        @relation(fields: [discountId], references: [id])
   discountId         String?
-  registrationType   RegistrationTypes @relation(fields: [registrationTypeId], references: [id])
-  registrationTypeId String
+  registrationType   RegistrationTypes? @relation(fields: [registrationTypeId], references: [id])
+  registrationTypeId String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 

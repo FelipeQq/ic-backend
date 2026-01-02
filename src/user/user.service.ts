@@ -66,55 +66,58 @@ export class UserService {
     }
   }
 
-  async createRelationEvent(idUser: string, idEvent: string, worker: boolean) {
-    const user = await this.prisma.user.findFirst({
-      where: { id: idUser },
-    });
+  // async createRelationEvent(
+  //   idUser: string,
+  //   idEvent: string,
+  //   registrationTypeId: string,
+  // ) {
+  //   const user = await this.prisma.user.findFirst({
+  //     where: { id: idUser },
+  //   });
 
-    if (!user) {
-      throw new NotFoundException('Usuário não encontrado!');
-    }
+  //   if (!user) {
+  //     throw new NotFoundException('Usuário não encontrado!');
+  //   }
 
-    if (!idEvent) {
-      throw new BadRequestException('ID do evento não fornecido!');
-    }
+  //   if (!idEvent) {
+  //     throw new BadRequestException('ID do evento não fornecido!');
+  //   }
 
-    const hasEvent = await this.prisma.event.findFirst({
-      where: { id: idEvent },
-    });
+  //   const hasEvent = await this.prisma.event.findFirst({
+  //     where: { id: idEvent },
+  //   });
 
-    if (!hasEvent) {
-      throw new NotFoundException('Evento não encontrado!');
-    }
+  //   if (!hasEvent) {
+  //     throw new NotFoundException('Evento não encontrado!');
+  //   }
 
-    const hasRelationEventOnUser = await this.prisma.eventOnUsers.findFirst({
-      where: { userId: user.id, eventId: idEvent },
-    });
+  //   const hasRelationEventOnUser = await this.prisma.eventOnUsers.findFirst({
+  //     where: { userId: user.id, eventId: idEvent },
+  //   });
 
-    if (hasRelationEventOnUser) {
-      throw new ConflictException('Usuário já está inscrito neste evento!');
-    }
+  //   if (hasRelationEventOnUser) {
+  //     throw new ConflictException('Usuário já está inscrito neste evento!');
+  //   }
 
-    const event = await this.prisma.eventOnUsers.create({
-      data: {
-        eventId: idEvent,
-        userId: user.id,
-        paid: false,
-        worker,
-      },
-    });
+  //   const event = await this.prisma.eventOnUsers.create({
+  //     data: {
+  //       eventId: idEvent,
+  //       userId: user.id,
+  //       registrationTypeId,
+  //     },
+  //   });
 
-    await enviarEmailConfirmacao(
-      user.fullName,
-      user.email,
-      worker,
-      hasEvent.name,
-      hasEvent.startDate,
-      hasEvent.endDate,
-    );
+  //   await enviarEmailConfirmacao(
+  //     user.fullName,
+  //     user.email,
+  //     false, // mudar
+  //     hasEvent.name,
+  //     hasEvent.startDate,
+  //     hasEvent.endDate,
+  //   );
 
-    return event;
-  }
+  //   return event;
+  // }
 
   async setProfilePhoto(id: string, photoUrl: string): Promise<UserDTO> {
     return this.prisma.user.update({
