@@ -42,44 +42,104 @@ model User {
   events      EventOnUsers[]
   bedrooms    BedroomsOnUsers[]
   TeamOnUsers TeamOnUsers[]
+  waitlists   Waitlist[]
 
   @@map("users")
 }
 
 model Event {
-  id             String   @id @default(uuid())
-  name           String
-  startDate      DateTime
-  endDate        DateTime
-  price          Float
-  workerPrice    Float
-  capacity       Int?
-  capacityWorker Int?
-  img            String?
-  groupLink      String?
-  isActive       Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updateAt       DateTime @updatedAt
-
-  users EventOnUsers[]
-
-  bedrooms Bedrooms[]
-  Team     Team[]
+  id                String              @id @default(uuid())
+  type              EventType           @default(CURSILHO)
+  name              String
+  startDate         DateTime
+  endDate           DateTime
+  img               String?
+  groupLink         String?
+  isActive          Boolean             @default(false)
+  createdAt         DateTime            @default(now())
+  updateAt          DateTime            @updatedAt
+  users             EventOnUsers[]
+  registrationTypes RegistrationTypes[]
+  bedrooms          Bedrooms[]
+  Team              Team[]
+  waitlist          Waitlist[]
 
   @@map("events")
 }
 
 model EventOnUsers {
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String // relation scalar field (used in the `@relation` attribute above)
-  event     Event    @relation(fields: [eventId], references: [id])
-  eventId   String // relation scalar field (used in the `@relation` attribute above)
-  worker    Boolean?
-  paid      Boolean
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  user               User              @relation(fields: [userId], references: [id])
+  userId             String // relation scalar field (used in the `@relation` attribute above)
+  event              Event             @relation(fields: [eventId], references: [id])
+  eventId            String // relation scalar field (used in the `@relation` attribute above)
+  payment            Payment?
+  discount           Discounts?        @relation(fields: [discountId], references: [id])
+  discountId         String?
+  registrationType   RegistrationTypes @relation(fields: [registrationTypeId], references: [id])
+  registrationTypeId String
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
   @@id([userId, eventId])
+}
+
+model RegistrationTypes {
+  id          String   @id @default(uuid())
+  description String
+  price       Float
+  capacity    Int
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users     EventOnUsers[]
+  waitlists Waitlist[]
+
+  @@map("registration_types")
+}
+
+model Discounts {
+  id          String         @id @default(uuid())
+  percentage  Float
+  description String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  users       EventOnUsers[]
+
+  @@map("discounts")
+}
+
+model Payment {
+  id             String          @id @default(uuid())
+  eventOnUsers   EventOnUsers    @relation(fields: [userId, eventId], references: [userId, eventId])
+  userId         String
+  eventId        String
+  method         PaymentMethod
+  status         PaymentStatus
+  receivedFrom   PaymentReceived @default(SYSTEM)
+  amount         Float
+  transactionRef Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([userId, eventId])
+  @@map("payments")
+}
+
+model Waitlist {
+  id                 String            @id @default(uuid())
+  user               User              @relation(fields: [userId], references: [id])
+  userId             String
+  event              Event             @relation(fields: [eventId], references: [id])
+  eventId            String
+  registrationType   RegistrationTypes @relation(fields: [registrationTypeId], references: [id])
+  registrationTypeId String
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@unique([userId, eventId])
+  @@map("waitlist")
 }
 
 model Bedrooms {
@@ -131,4 +191,30 @@ model TeamOnUsers {
 enum TeamRole {
   MEMBER
   LEADER
+}
+
+enum EventType {
+  CURSILHO
+  RETIRO
+}
+
+enum PaymentReceived {
+  SYSTEM
+  EXTERNAL
+}
+
+enum PaymentMethod {
+  PIX
+  CREDIT_CARD
+  DEBIT_CARD
+  CASH
+  TRANSFER
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  CANCELED
+  REFUNDED
 }
