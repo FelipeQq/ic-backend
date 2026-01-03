@@ -38,7 +38,6 @@ export class EventDto {
     example: ['userId1', 'userId2'],
     description: 'Lista de IDs dos usuários associados ao evento',
   })
-  users?: string[];
   @ApiProperty({
     example: [
       { description: 'standard', price: 100, capacity: 50 },
@@ -52,4 +51,5 @@ export class EventDto {
     price: number;
     capacity: number;
   }[];
+  data: Object;
 }

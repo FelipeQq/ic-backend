@@ -249,26 +249,21 @@ export class EventService {
       data.endDate = new Date(data.endDate);
       data.startDate = new Date(data.startDate);
 
-      await this.prisma.event
-        .create({
-          data: {
-            endDate: data.endDate,
-            startDate: data.startDate,
-            name: data.name,
-            registrationTypes: {
-              createMany: {
-                data: data.registrationTypes,
-              },
+      await this.prisma.event.create({
+        data: {
+          endDate: data.endDate,
+          startDate: data.startDate,
+          name: data.name,
+          data: data.data as Prisma.JsonObject,
+          registrationTypes: {
+            createMany: {
+              data: data.registrationTypes,
             },
-            groupLink: data.groupLink,
-            isActive: true,
           },
-        })
-        .then((event) => {
-          // if (data.users) {
-          //   this.createRelations(data.users, event.id, );
-          // }
-        });
+          groupLink: data.groupLink,
+          isActive: true,
+        },
+      });
     } catch {
       throw new InternalServerErrorException();
     }

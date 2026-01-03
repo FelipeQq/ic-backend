@@ -53,7 +53,7 @@ model Event {
   name              String
   startDate         DateTime
   endDate           DateTime
-  img               String?
+  data              Json?
   groupLink         String?
   isActive          Boolean             @default(false)
   createdAt         DateTime            @default(now())
