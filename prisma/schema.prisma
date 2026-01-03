@@ -87,7 +87,7 @@ model EventOnUsersRolesRegistration {
   eventId            String
   roleRegistrationId String
   eventOnUsers       EventOnUsers      @relation(name: "EventOnUsersRoles", fields: [userId, eventId], references: [userId, eventId], onDelete: Cascade)
-  role               RolesRegistration @relation(fields: [roleRegistrationId], references: [id])
+  role               RolesRegistration @relation(fields: [roleRegistrationId], references: [id], onDelete: Cascade)
 
   @@id([userId, eventId, roleRegistrationId])
 }
@@ -96,7 +96,7 @@ model GroupRoles {
   id       String              @id @default(uuid())
   name     String
   capacity Int?
-  event    Event               @relation(fields: [eventId], references: [id])
+  event    Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
   eventId  String
   roles    RolesRegistration[]
 
@@ -107,7 +107,7 @@ model RolesRegistration {
   id           String                          @id @default(uuid())
   description  String
   groupId      String
-  group        GroupRoles                      @relation(fields: [groupId], references: [id])
+  group        GroupRoles                      @relation(fields: [groupId], references: [id], onDelete: Cascade)
   price        Float
   EventOnUsers EventOnUsersRolesRegistration[]
   Waitlist     Waitlist[]

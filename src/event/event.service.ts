@@ -49,7 +49,6 @@ export class EventService {
 
     return result.results;
   }
-
   private async _registerUserInEventTx(
     tx: PrismaService | Prisma.TransactionClient,
     userId: string,
@@ -75,6 +74,7 @@ export class EventService {
       where: { id: { in: registrationRoleIds } },
       include: { group: true },
     });
+    console.log(registrationRoleIds);
 
     if (roles.length !== registrationRoleIds.length) {
       throw new BadRequestException('Invalid role(s)');
@@ -125,7 +125,6 @@ export class EventService {
 
     return { user, event, results };
   }
-
   async removeRelation(idUser: string, idEvent: string) {
     const relationExists = await this.prisma.eventOnUsers.findFirst({
       where: { userId: idUser, eventId: idEvent },
@@ -146,7 +145,7 @@ export class EventService {
   async updateUserFromEvent(
     userId: string,
     eventId: string,
-    roleRegistrationId: string[],
+    registrationRoleId: string[],
   ) {
     return this.prisma.$transaction(async (tx) => {
       const relation = await tx.eventOnUsers.findUnique({
@@ -157,20 +156,19 @@ export class EventService {
         throw new NotFoundException('User not registered in event');
       }
 
-      // remove roles antigas
-      await tx.eventOnUsersRolesRegistration.deleteMany({
+      await tx.eventOnUsers.deleteMany({
         where: { userId, eventId },
       });
 
       // reaproveita regra de inscrição
-      await this._registerUserInEventTx(
+      const result = await this._registerUserInEventTx(
         tx,
         userId,
         eventId,
-        roleRegistrationId,
+        registrationRoleId,
       );
 
-      return true;
+      return result.results;
     });
   }
 
@@ -197,7 +195,6 @@ export class EventService {
     }
     return transformData(events);
   }
-
   private handleReturnUsersByEvent(users, idEvent) {
     return users.map((user: any) => {
       const userBedrooms =
@@ -222,7 +219,6 @@ export class EventService {
       };
     });
   }
-
   async create(data: EventDto) {
     try {
       data.endDate = new Date(data.endDate);
@@ -397,6 +393,19 @@ export class EventService {
     });
     //.then((event) => this.handlerReturnEvent(event));
   }
+  async findOneClear(id: string) {
+    return await this.prisma.event.findFirst({
+      where: { id },
+      include: {
+        groupRoles: {
+          include: {
+            roles: true,
+          },
+        },
+      },
+    });
+    //.then((event) => this.handlerReturnEvent(event));
+  }
 
   async update(id: string, updateEvent: EventDto) {
     const event = await this.prisma.event.findUnique({
@@ -422,12 +431,14 @@ export class EventService {
     const endDate = new Date(updateEvent.endDate);
 
     await this.prisma.$transaction(async (tx) => {
-      /** 1️⃣ Atualiza dados básicos do evento */
+      /**Atualiza dados básicos do evento */
       await tx.event.update({
         where: { id },
         data: {
+          type: updateEvent.type,
           name: updateEvent.name,
           startDate,
+          data: updateEvent.data as Prisma.JsonObject,
           endDate,
           isActive: updateEvent.isActive,
           groupLink: updateEvent.groupLink,
@@ -436,48 +447,103 @@ export class EventService {
 
       if (!updateEvent.groupRoles?.length) return;
 
-      const existingRoles = event.groupRoles.flatMap((g) => g.roles);
+      const dbGroups = new Map(event.groupRoles.map((g) => [g.id, g]));
 
-      const incomingIds = updateEvent.groupRoles
-        .filter((rt) => rt.id)
-        .map((rt) => rt.id);
+      const incomingGroups = new Map(
+        updateEvent.groupRoles.filter((g) => g.id).map((g) => [g.id!, g]),
+      );
 
-      /** 2️⃣ Remove roles que não vieram mais */
-      for (const role of existingRoles) {
-        if (!incomingIds.includes(role.id)) {
-          if (role._count.EventOnUsers > 0) {
+      //REMOVER GRUPOS AUSENTES
+
+      for (const group of dbGroups.values()) {
+        if (!incomingGroups.has(group.id)) {
+          const hasUsers = group.roles.some((r) => r._count.EventOnUsers > 0);
+
+          if (hasUsers) {
             throw new BadRequestException(
-              `Registration type "${role.description}" already has users and cannot be removed`,
+              `Group "${group.name}" has registered users and cannot be removed`,
             );
           }
 
-          await tx.rolesRegistration.delete({
-            where: { id: role.id },
+          await tx.groupRoles.delete({
+            where: { id: group.id },
           });
         }
       }
 
-      /** 3️⃣ Cria ou atualiza roles */
-      for (const rt of existingRoles) {
-        if (rt.id) {
-          await tx.rolesRegistration.update({
-            where: { id: rt.id },
+      //CRIAR / ATUALIZAR GRUPOS
+
+      for (const group of updateEvent.groupRoles) {
+        let groupId = group.id;
+
+        if (groupId && dbGroups.has(groupId)) {
+          // update
+          await tx.groupRoles.update({
+            where: { id: groupId },
             data: {
-              description: rt.description,
-              price: rt.price,
+              name: group.name,
+              capacity: group.capacity,
             },
           });
         } else {
-          await tx.rolesRegistration.create({
+          // create
+          const created = await tx.groupRoles.create({
             data: {
-              description: rt.description,
-              price: rt.price,
-              groupId: rt.groupId,
+              name: group.name,
+              capacity: group.capacity,
+              eventId: id,
             },
           });
+
+          groupId = created.id;
+        }
+
+        //ROLES DO GRUPO
+
+        const dbRoles = dbGroups.get(groupId)?.roles ?? [];
+
+        const incomingRoles = new Map(
+          group.roles.filter((r) => r.id).map((r) => [r.id!, r]),
+        );
+
+        /** REMOVER ROLES AUSENTES */
+        for (const role of dbRoles) {
+          if (!incomingRoles.has(role.id)) {
+            if (role._count.EventOnUsers > 0) {
+              throw new BadRequestException(
+                `Role "${role.description}" already has users and cannot be removed`,
+              );
+            }
+
+            await tx.rolesRegistration.delete({
+              where: { id: role.id },
+            });
+          }
+        }
+
+        /** CRIAR / ATUALIZAR ROLES */
+        for (const role of group.roles) {
+          if (role.id) {
+            await tx.rolesRegistration.update({
+              where: { id: role.id },
+              data: {
+                description: role.description,
+                price: role.price,
+              },
+            });
+          } else {
+            await tx.rolesRegistration.create({
+              data: {
+                description: role.description,
+                price: role.price,
+                groupId,
+              },
+            });
+          }
         }
       }
     });
+    return this.findOneClear(id);
   }
 
   async removeUserFromEvent(idUser: string, idEvent: string) {
@@ -510,19 +576,34 @@ export class EventService {
   }
 
   async remove(id: string) {
-    const eventExists = await this.prisma.event.findUnique({
-      where: {
-        id,
-      },
-    });
+    try {
+      const eventExists = await this.prisma.event.findUnique({
+        where: {
+          id,
+        },
+      });
 
-    if (!eventExists) {
-      throw new NotFoundException('Event does not exists!');
+      if (!eventExists) {
+        throw new NotFoundException('Event does not exists!');
+      }
+      //verificar se há usuários inscritos
+      const userCount = await this.prisma.eventOnUsers.count({
+        where: {
+          eventId: id,
+        },
+      });
+
+      if (userCount > 0) {
+        throw new BadRequestException(
+          'Cannot delete event with registered users!',
+        );
+      }
+
+      await this.prisma.event.delete({ where: { id } });
+    } catch (error) {
+      console.log(error);
+      throw new InternalServerErrorException(error.message);
     }
-
-    await this.prisma.event.delete({ where: { id } }).catch(() => {
-      throw new InternalServerErrorException();
-    });
   }
   async findUsers(idEvent: string) {
     return this.prisma.user
