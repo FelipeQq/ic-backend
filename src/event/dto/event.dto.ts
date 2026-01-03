@@ -46,11 +46,11 @@ export class EventDto {
     ],
     description: 'Tipos de inscrição disponíveis para o evento',
   })
-  registrationTypes?: {
+  groupRoles?: {
     id?: string;
-    description: string;
-    price: number;
+    name: string;
     capacity: number;
+    roles: { id?: string; price: number }[];
   }[];
   data: Object;
   type: EventType;

@@ -96,8 +96,9 @@ model groupRoles {
 
 model rolesRegistration {
   id           String         @id @default(uuid())
-  roleId       String
-  role         groupRoles     @relation(fields: [roleId], references: [id])
+  description  String
+  groupId      String
+  group        groupRoles     @relation(fields: [groupId], references: [id])
   price        Float
   EventOnUsers EventOnUsers[]
   Waitlist     Waitlist[]

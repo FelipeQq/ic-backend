@@ -15,7 +15,7 @@ export class EventService {
   async registerUserInEvent(
     userId: string,
     eventId: string,
-    registrationTypeId: string,
+    roleRegistrationId: string,
     tx?: Prisma.TransactionClient,
   ) {
     const prisma = tx ?? this.prisma;
@@ -25,10 +25,10 @@ export class EventService {
           prisma,
           userId,
           eventId,
-          registrationTypeId,
+          roleRegistrationId,
         )
       : await this.prisma.$transaction(async (trx) =>
-          this._registerUserInEventTx(trx, userId, eventId, registrationTypeId),
+          this._registerUserInEventTx(trx, userId, eventId, roleRegistrationId),
         );
 
     // fora da transação
@@ -48,7 +48,7 @@ export class EventService {
     tx: PrismaService | Prisma.TransactionClient,
     userId: string,
     eventId: string,
-    registrationTypeId: string,
+    roleRegistrationId: string,
   ) {
     const user = await tx.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
@@ -69,7 +69,7 @@ export class EventService {
     >`
     SELECT capacity
     FROM registration_types
-    WHERE id = ${registrationTypeId}
+    WHERE id = ${roleRegistrationId}
       AND "eventId" = ${eventId}
     FOR UPDATE
   `;
@@ -82,12 +82,12 @@ export class EventService {
     await tx.$queryRaw`
     SELECT 1
     FROM event_on_users
-    WHERE "registrationTypeId" = ${registrationTypeId}
+    WHERE "roleRegistrationId" = ${roleRegistrationId}
     FOR UPDATE
   `;
 
     const count = await tx.eventOnUsers.count({
-      where: { registrationTypeId },
+      where: { roleRegistrationId },
     });
 
     if (
@@ -97,7 +97,7 @@ export class EventService {
       return {
         type: 'WAITLIST',
         data: await tx.waitlist.create({
-          data: { userId, eventId, registrationTypeId },
+          data: { userId, eventId, roleRegistrationId },
         }),
         user,
         event,
@@ -107,7 +107,7 @@ export class EventService {
     return {
       type: 'REGISTERED',
       data: await tx.eventOnUsers.create({
-        data: { userId, eventId, registrationTypeId },
+        data: { userId, eventId, roleRegistrationId },
       }),
       user,
       event,
@@ -133,9 +133,9 @@ export class EventService {
   async updateUserFromEvent(
     userId: string,
     eventId: string,
-    data: { registrationTypeId?: string },
+    data: { roleRegistrationId?: string },
   ) {
-    if (!data.registrationTypeId) {
+    if (!data.roleRegistrationId) {
       throw new BadRequestException('New registration type is required');
     }
 
@@ -145,7 +145,9 @@ export class EventService {
           userId_eventId: { userId, eventId },
         },
         include: {
-          registrationType: true,
+          rolesRegistration: {
+            include: { group: true },
+          },
         },
       });
 
@@ -154,13 +156,14 @@ export class EventService {
       }
 
       // Busca o novo tipo de inscrição (e garante que pertence ao evento)
-      const newRegistrationType = await tx.registrationTypes.findFirst({
+      const newRegistrationType = await tx.rolesRegistration.findFirst({
         where: {
-          id: data.registrationTypeId,
-          eventId,
+          id: data.roleRegistrationId,
+          group: { eventId },
         },
         include: {
-          _count: { select: { users: true } },
+          _count: { select: { EventOnUsers: true } },
+          group: { select: { capacity: true } },
         },
       });
 
@@ -172,8 +175,9 @@ export class EventService {
 
       // Valida capacidade
       if (
-        newRegistrationType.capacity !== null &&
-        newRegistrationType._count.users >= newRegistrationType.capacity
+        newRegistrationType.group.capacity !== null &&
+        newRegistrationType._count.EventOnUsers >=
+          newRegistrationType.group.capacity
       ) {
         throw new BadRequestException(
           'Registration type capacity has already been reached',
@@ -181,7 +185,7 @@ export class EventService {
       }
 
       //  Evita update inútil
-      if (relation.registrationTypeId === newRegistrationType.id) {
+      if (relation.roleRegistrationId === newRegistrationType.id) {
         return relation;
       }
 
@@ -191,7 +195,7 @@ export class EventService {
           userId_eventId: { userId, eventId },
         },
         data: {
-          registrationTypeId: newRegistrationType.id,
+          roleRegistrationId: newRegistrationType.id,
         },
       });
     });
@@ -256,10 +260,16 @@ export class EventService {
           startDate: data.startDate,
           name: data.name,
           data: data.data as Prisma.JsonObject,
-          registrationTypes: {
-            createMany: {
-              data: data.registrationTypes,
-            },
+          groupRoles: {
+            create: data.groupRoles?.map((gr) => ({
+              name: gr.name,
+              capacity: gr.capacity,
+              group: {
+                create: gr.roles.map((r) => ({
+                  price: r.price,
+                })),
+              },
+            })),
           },
           groupLink: data.groupLink,
           isActive: true,
@@ -361,13 +371,16 @@ export class EventService {
         name: true,
         startDate: true,
         isActive: true,
-        registrationTypes: {
+        groupRoles: {
           select: {
-            description: true,
+            name: true,
             capacity: true,
-            _count: {
+            roles: {
               select: {
-                users: true,
+                id: true,
+                _count: {
+                  select: { EventOnUsers: true },
+                },
               },
             },
           },
@@ -393,8 +406,12 @@ export class EventService {
             select: {
               user: true,
               payment: true,
-              registrationType: true,
               discount: true,
+            },
+          },
+          groupRoles: {
+            include: {
+              roles: true,
             },
           },
         },
@@ -406,21 +423,27 @@ export class EventService {
     const event = await this.prisma.event.findUnique({
       where: { id },
       include: {
-        registrationTypes: {
-          include: { _count: { select: { users: true } } },
+        groupRoles: {
+          include: {
+            roles: {
+              include: {
+                _count: { select: { EventOnUsers: true } },
+              },
+            },
+          },
         },
       },
     });
 
     if (!event) {
-      throw new NotFoundException('Event does not exists!');
+      throw new NotFoundException('Event does not exist');
     }
 
     const startDate = new Date(updateEvent.startDate);
     const endDate = new Date(updateEvent.endDate);
 
     await this.prisma.$transaction(async (tx) => {
-      // 1️⃣ Atualiza dados do evento
+      /** 1️⃣ Atualiza dados básicos do evento */
       await tx.event.update({
         where: { id },
         data: {
@@ -432,47 +455,45 @@ export class EventService {
         },
       });
 
-      if (!updateEvent.registrationTypes) return;
+      if (!updateEvent.groupRoles?.length) return;
 
-      const existing = event.registrationTypes;
+      const existingRoles = event.groupRoles.flatMap((g) => g.roles);
 
-      const incomingIds = updateEvent.registrationTypes
+      const incomingIds = updateEvent.groupRoles
         .filter((rt) => rt.id)
         .map((rt) => rt.id);
 
-      // 2️⃣ Remover tipos que não vieram mais
-      for (const rt of existing) {
-        if (!incomingIds.includes(rt.id)) {
-          if (rt._count.users > 0) {
+      /** 2️⃣ Remove roles que não vieram mais */
+      for (const role of existingRoles) {
+        if (!incomingIds.includes(role.id)) {
+          if (role._count.EventOnUsers > 0) {
             throw new BadRequestException(
-              `Registration type "${rt.description}" has users and cannot be removed`,
+              `Registration type "${role.description}" already has users and cannot be removed`,
             );
           }
 
-          await tx.registrationTypes.delete({
-            where: { id: rt.id },
+          await tx.rolesRegistration.delete({
+            where: { id: role.id },
           });
         }
       }
 
-      // 3️⃣ Criar / Atualizar
-      for (const rt of updateEvent.registrationTypes) {
+      /** 3️⃣ Cria ou atualiza roles */
+      for (const rt of existingRoles) {
         if (rt.id) {
-          await tx.registrationTypes.update({
+          await tx.rolesRegistration.update({
             where: { id: rt.id },
             data: {
               description: rt.description,
               price: rt.price,
-              capacity: rt.capacity,
             },
           });
         } else {
-          await tx.registrationTypes.create({
+          await tx.rolesRegistration.create({
             data: {
-              eventId: id,
               description: rt.description,
               price: rt.price,
-              capacity: rt.capacity,
+              groupId: rt.groupId,
             },
           });
         }
@@ -534,7 +555,12 @@ export class EventService {
             select: {
               eventId: true,
               payment: true,
-              registrationType: true,
+              rolesRegistration: {
+                select: {
+                  description: true,
+                  group: { select: { name: true } },
+                },
+              },
             },
           },
           bedrooms: {
@@ -571,7 +597,9 @@ export class EventService {
       },
       include: {
         user: true,
-        registrationType: true,
+        rolesRegistration: {
+          select: { price: true, group: { select: { name: true } } },
+        },
       },
     });
   }
@@ -605,7 +633,7 @@ export class EventService {
       const registration = await this.registerUserInEvent(
         userId,
         eventId,
-        waitlistEntry.registrationTypeId,
+        waitlistEntry.roleRegistrationId,
         tx,
       );
 
