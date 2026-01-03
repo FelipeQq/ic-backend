@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { EventType } from '@prisma/client';
 import { IsBoolean, IsInt, IsString } from 'class-validator';
 export class EventDto {
   @ApiProperty({
@@ -52,4 +53,5 @@ export class EventDto {
     capacity: number;
   }[];
   data: Object;
+  type: EventType;
 }

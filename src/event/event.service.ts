@@ -251,6 +251,7 @@ export class EventService {
 
       await this.prisma.event.create({
         data: {
+          type: data.type,
           endDate: data.endDate,
           startDate: data.startDate,
           name: data.name,
