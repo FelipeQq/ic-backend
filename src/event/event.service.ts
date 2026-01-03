@@ -4,7 +4,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma';
+import { Prisma, PrismaService } from '../prisma';
 import { EventDto } from './dto/event.dto';
 import { enviarEmailConfirmacao } from 'src/nodeMailer/sendEmail';
 
@@ -16,73 +16,22 @@ export class EventService {
     userId: string,
     eventId: string,
     registrationTypeId: string,
+    tx?: Prisma.TransactionClient,
   ) {
-    const result = await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({ where: { id: userId } });
-      if (!user) throw new NotFoundException('User not found');
+    const prisma = tx ?? this.prisma;
 
-      const event = await tx.event.findUnique({ where: { id: eventId } });
-      if (!event) throw new NotFoundException('Event not found');
+    const result = tx
+      ? await this._registerUserInEventTx(
+          prisma,
+          userId,
+          eventId,
+          registrationTypeId,
+        )
+      : await this.prisma.$transaction(async (trx) =>
+          this._registerUserInEventTx(trx, userId, eventId, registrationTypeId),
+        );
 
-      const alreadyRegistered = await tx.eventOnUsers.findUnique({
-        where: { userId_eventId: { userId, eventId } },
-      });
-      if (alreadyRegistered) {
-        throw new BadRequestException('User already registered');
-      }
-
-      // 🔒 Lock no tipo de inscrição
-      const [registrationType] = await tx.$queryRaw<
-        { capacity: number | null }[]
-      >`
-      SELECT capacity
-      FROM registration_types
-      WHERE id = ${registrationTypeId}
-        AND "eventId" = ${eventId}
-      FOR UPDATE
-    `;
-
-      if (!registrationType) {
-        throw new NotFoundException('Registration type not found');
-      }
-
-      // 🔒 Lock nos inscritos
-      await tx.$queryRaw`
-      SELECT 1
-      FROM event_on_users
-      WHERE "registrationTypeId" = ${registrationTypeId}
-      FOR UPDATE
-    `;
-
-      const count = await tx.eventOnUsers.count({
-        where: { registrationTypeId },
-      });
-
-      if (
-        registrationType.capacity !== null &&
-        count >= registrationType.capacity
-      ) {
-        return {
-          type: 'WAITLIST',
-          data: await tx.waitlist.create({
-            data: { userId, eventId, registrationTypeId },
-          }),
-          user,
-          event,
-        };
-      }
-
-      return {
-        type: 'REGISTERED',
-        data: await tx.eventOnUsers.create({
-          data: { userId, eventId, registrationTypeId },
-        }),
-        user,
-        event,
-      };
-    });
-
-    // 📧 Fora da transação
+    // fora da transação
     await enviarEmailConfirmacao(
       result.user.fullName,
       result.user.email,
@@ -93,6 +42,76 @@ export class EventService {
     );
 
     return result.data;
+  }
+
+  private async _registerUserInEventTx(
+    tx: PrismaService | Prisma.TransactionClient,
+    userId: string,
+    eventId: string,
+    registrationTypeId: string,
+  ) {
+    const user = await tx.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const event = await tx.event.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+
+    const alreadyRegistered = await tx.eventOnUsers.findUnique({
+      where: { userId_eventId: { userId, eventId } },
+    });
+    if (alreadyRegistered) {
+      throw new BadRequestException('User already registered');
+    }
+
+    // 🔒 lock no tipo de inscrição
+    const [registrationType] = await tx.$queryRaw<
+      { capacity: number | null }[]
+    >`
+    SELECT capacity
+    FROM registration_types
+    WHERE id = ${registrationTypeId}
+      AND "eventId" = ${eventId}
+    FOR UPDATE
+  `;
+
+    if (!registrationType) {
+      throw new NotFoundException('Registration type not found');
+    }
+
+    // 🔒 lock nos inscritos
+    await tx.$queryRaw`
+    SELECT 1
+    FROM event_on_users
+    WHERE "registrationTypeId" = ${registrationTypeId}
+    FOR UPDATE
+  `;
+
+    const count = await tx.eventOnUsers.count({
+      where: { registrationTypeId },
+    });
+
+    if (
+      registrationType.capacity !== null &&
+      count >= registrationType.capacity
+    ) {
+      return {
+        type: 'WAITLIST',
+        data: await tx.waitlist.create({
+          data: { userId, eventId, registrationTypeId },
+        }),
+        user,
+        event,
+      };
+    }
+
+    return {
+      type: 'REGISTERED',
+      data: await tx.eventOnUsers.create({
+        data: { userId, eventId, registrationTypeId },
+      }),
+      user,
+      event,
+    };
   }
 
   async removeRelation(idUser: string, idEvent: string) {
@@ -548,5 +567,57 @@ export class EventService {
         },
       })
       .then((users) => this.handleReturnUsersByEvent(users, idEvent));
+  }
+  async findUsersInWaitlist(idEvent: string) {
+    return this.prisma.waitlist.findMany({
+      where: {
+        eventId: idEvent,
+      },
+      include: {
+        user: true,
+        registrationType: true,
+      },
+    });
+  }
+  async removeUserFromWaitlist(idUser: string, idEvent: string) {
+    const waitlistEntry = await this.prisma.waitlist.findFirst({
+      where: { userId: idUser, eventId: idEvent },
+    });
+
+    if (!waitlistEntry) {
+      throw new NotFoundException('Waitlist entry does not exist!');
+    }
+
+    await this.prisma.waitlist
+      .delete({
+        where: { id: waitlistEntry.id },
+      })
+      .catch(() => {
+        throw new InternalServerErrorException();
+      });
+  }
+  async movedUserFromWaitlistToEvent(userId: string, eventId: string) {
+    return await this.prisma.$transaction(async (tx) => {
+      const waitlistEntry = await tx.waitlist.findFirst({
+        where: { userId, eventId },
+      });
+
+      if (!waitlistEntry) {
+        throw new NotFoundException('Waitlist entry does not exist!');
+      }
+
+      const registration = await this.registerUserInEvent(
+        userId,
+        eventId,
+        waitlistEntry.registrationTypeId,
+        tx,
+      );
+
+      await tx.waitlist.delete({
+        where: { id: waitlistEntry.id },
+      });
+
+      return registration;
+    });
   }
 }

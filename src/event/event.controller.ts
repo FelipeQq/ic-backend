@@ -89,4 +89,31 @@ export class EventController {
   remove(@Param('id') id: string) {
     return this.eventService.remove(id);
   }
+
+  @ApiOperation({ summary: 'Find users in waitlist' })
+  @UseGuards(JwtAuthGuard)
+  @Get(':idEvent/waitlist/users')
+  findUsersInWaitlist(@Param('idEvent') idEvent: string) {
+    return this.eventService.findUsersInWaitlist(idEvent);
+  }
+
+  @ApiOperation({ summary: 'Remove user from waitlist' })
+  @UseGuards(JwtAuthGuard)
+  @Delete(':idEvent/waitlist/users/:idUser')
+  removeUserFromWaitlist(
+    @Param('idEvent') idEvent: string,
+    @Param('idUser') idUser: string,
+  ) {
+    return this.eventService.removeUserFromWaitlist(idUser, idEvent);
+  }
+
+  @ApiOperation({ summary: 'Move user from waitlist to event' })
+  @UseGuards(JwtAuthGuard)
+  @Post(':idEvent/waitlist/users/:idUser/to-event')
+  moveUserFromWaitlistToEvent(
+    @Param('idEvent') idEvent: string,
+    @Param('idUser') idUser: string,
+  ) {
+    return this.eventService.movedUserFromWaitlistToEvent(idUser, idEvent);
+  }
 }
