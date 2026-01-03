@@ -7,7 +7,6 @@
   - You are about to drop the column `capacityWorker` on the `events` table. All the data in the column will be lost.
   - You are about to drop the column `price` on the `events` table. All the data in the column will be lost.
   - You are about to drop the column `workerPrice` on the `events` table. All the data in the column will be lost.
-  - Added the required column `registrationTypeId` to the `EventOnUsers` table without a default value. This is not possible if the table is not empty.
 
 */
 -- CreateEnum
@@ -26,7 +25,7 @@ CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'PAID', 'CANCELED', 'REFUNDED');
 ALTER TABLE "EventOnUsers" DROP COLUMN "paid",
 DROP COLUMN "worker",
 ADD COLUMN     "discountId" TEXT,
-ADD COLUMN     "registrationTypeId" TEXT NOT NULL;
+ADD COLUMN     "registrationTypeId" TEXT;
 
 -- AlterTable
 ALTER TABLE "events" DROP COLUMN "capacity",
@@ -97,7 +96,7 @@ CREATE UNIQUE INDEX "waitlist_userId_eventId_key" ON "waitlist"("userId", "event
 ALTER TABLE "EventOnUsers" ADD CONSTRAINT "EventOnUsers_discountId_fkey" FOREIGN KEY ("discountId") REFERENCES "discounts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "EventOnUsers" ADD CONSTRAINT "EventOnUsers_registrationTypeId_fkey" FOREIGN KEY ("registrationTypeId") REFERENCES "registration_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "EventOnUsers" ADD CONSTRAINT "EventOnUsers_registrationTypeId_fkey" FOREIGN KEY ("registrationTypeId") REFERENCES "registration_types"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "registration_types" ADD CONSTRAINT "registration_types_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "events"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
