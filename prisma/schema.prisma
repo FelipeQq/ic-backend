@@ -48,21 +48,21 @@ model User {
 }
 
 model Event {
-  id                String              @id @default(uuid())
-  type              EventType           @default(CURSILHO)
-  name              String
-  startDate         DateTime
-  endDate           DateTime
-  data              Json?
-  groupLink         String?
-  isActive          Boolean             @default(false)
-  createdAt         DateTime            @default(now())
-  updateAt          DateTime            @updatedAt
-  users             EventOnUsers[]
-  registrationTypes RegistrationTypes[]
-  bedrooms          Bedrooms[]
-  Team              Team[]
-  waitlist          Waitlist[]
+  id         String         @id @default(uuid())
+  type       EventType      @default(CURSILHO)
+  name       String
+  startDate  DateTime
+  endDate    DateTime
+  data       Json?
+  groupLink  String?
+  isActive   Boolean        @default(false)
+  createdAt  DateTime       @default(now())
+  updateAt   DateTime       @updatedAt
+  users      EventOnUsers[]
+  groupRoles groupRoles[]
+  bedrooms   Bedrooms[]
+  Team       Team[]
+  waitlist   Waitlist[]
 
   @@map("events")
 }
@@ -75,28 +75,34 @@ model EventOnUsers {
   payment            Payment?
   discount           Discounts?         @relation(fields: [discountId], references: [id])
   discountId         String?
-  registrationType   RegistrationTypes? @relation(fields: [registrationTypeId], references: [id])
-  registrationTypeId String?
+  rolesRegistration  rolesRegistration? @relation(fields: [roleRegistrationId], references: [id])
+  roleRegistrationId String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
   @@id([userId, eventId])
 }
 
-model RegistrationTypes {
-  id          String   @id @default(uuid())
-  description String
-  price       Float
-  capacity    Int
-  eventId     String
-  event       Event    @relation(fields: [eventId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model groupRoles {
+  id       String              @id @default(uuid())
+  name     String
+  capacity Int?
+  event    Event               @relation(fields: [eventId], references: [id])
+  eventId  String
+  roles    rolesRegistration[]
 
-  users     EventOnUsers[]
-  waitlists Waitlist[]
+  @@map("group_roles")
+}
 
-  @@map("registration_types")
+model rolesRegistration {
+  id           String         @id @default(uuid())
+  roleId       String
+  role         groupRoles     @relation(fields: [roleId], references: [id])
+  price        Float
+  EventOnUsers EventOnUsers[]
+  Waitlist     Waitlist[]
+
+  @@map("roles_registration_types")
 }
 
 model Discounts {
@@ -128,15 +134,15 @@ model Payment {
 }
 
 model Waitlist {
-  id                 String            @id @default(uuid())
-  user               User              @relation(fields: [userId], references: [id])
+  id                 String             @id @default(uuid())
+  user               User               @relation(fields: [userId], references: [id])
   userId             String
-  event              Event             @relation(fields: [eventId], references: [id])
+  event              Event              @relation(fields: [eventId], references: [id])
   eventId            String
-  registrationType   RegistrationTypes @relation(fields: [registrationTypeId], references: [id])
-  registrationTypeId String
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  rolesRegistration  rolesRegistration? @relation(fields: [roleRegistrationId], references: [id])
+  roleRegistrationId String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@unique([userId, eventId])
   @@map("waitlist")
