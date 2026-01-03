@@ -78,9 +78,13 @@ export class EventController {
   updateUserFromEvent(
     @Param('idEvent') idEvent: string,
     @Param('idUser') idUser: string,
-    @Body() data: { roleRegistrationId: string },
+    @Body() data: { roleRegistrationId: string[] },
   ) {
-    return this.eventService.updateUserFromEvent(idUser, idEvent, data);
+    return this.eventService.updateUserFromEvent(
+      idUser,
+      idEvent,
+      data.roleRegistrationId,
+    );
   }
 
   @ApiOperation({ summary: 'Delete event' })
@@ -115,5 +119,20 @@ export class EventController {
     @Param('idUser') idUser: string,
   ) {
     return this.eventService.movedUserFromWaitlistToEvent(idUser, idEvent);
+  }
+
+  @ApiOperation({ summary: 'Register user in event' })
+  @Post(':idEvent/users/:idUser/register')
+  @UseGuards(JwtAuthGuard)
+  async createRelationEvent(
+    @Param('idUser') idUser: string,
+    @Param('idEvent') idEvent: string,
+    @Body('registrationRoleId') registrationRoleId: string[],
+  ) {
+    return this.eventService.registerUserInEvent(
+      idUser,
+      idEvent,
+      registrationRoleId,
+    );
   }
 }

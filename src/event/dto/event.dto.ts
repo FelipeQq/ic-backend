@@ -36,22 +36,41 @@ export class EventDto {
   endDate: Date;
 
   @ApiProperty({
-    example: ['userId1', 'userId2'],
-    description: 'Lista de IDs dos usuários associados ao evento',
-  })
-  @ApiProperty({
+    description: 'Grupos de regras do evento',
     example: [
-      { description: 'standard', price: 100, capacity: 50 },
-      { description: 'vip', price: 200, capacity: 20 },
+      {
+        id: 'uuid-v4',
+        name: 'Grupo 1',
+        capacity: 100,
+        roles: [
+          {
+            id: 'uuid-v4',
+            price: 100.0,
+            description: 'Descrição da regra 1',
+          },
+          {
+            price: 150.0,
+            description: 'Descrição da regra 2',
+          },
+        ],
+      },
     ],
-    description: 'Tipos de inscrição disponíveis para o evento',
   })
   groupRoles?: {
     id?: string;
     name: string;
     capacity: number;
-    roles: { id?: string; price: number }[];
+    roles: { id?: string; price: number; description: string }[];
   }[];
+  @ApiProperty({
+    example: { local: 'Auditório Principal', address: 'Rua XYZ, 123' },
+    description: 'Dados adicionais do evento',
+  })
   data: Object;
+  @ApiProperty({
+    example: 'CURSILHO',
+    description: 'Tipo do evento',
+  })
+  @IsString()
   type: EventType;
 }

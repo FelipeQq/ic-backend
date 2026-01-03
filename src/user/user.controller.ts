@@ -38,21 +38,21 @@ export class UserController {
   async create(@Body() data: UserDTO) {
     return this.userService.create(data);
   }
-
-  @ApiOperation({ summary: 'Create relation user event' })
-  @Post(':idUser/event/:idEvent')
-  @UseGuards(JwtAuthGuard)
-  async createRelationEvent(
-    @Param('idUser') idUser: string,
-    @Param('idEvent') idEvent: string,
-    @Body('registrationTypeId') registrationTypeId: string,
-  ) {
-    return this.eventService.registerUserInEvent(
-      idUser,
-      idEvent,
-      registrationTypeId,
-    );
-  }
+  // riando somente no evento
+  // @ApiOperation({ summary: 'Create relation user event' })
+  // @Post(':idUser/event/:idEvent')
+  // @UseGuards(JwtAuthGuard)
+  // async createRelationEvent(
+  //   @Param('idUser') idUser: string,
+  //   @Param('idEvent') idEvent: string,
+  //   @Body('registrationRoleId') registrationRoleId: string[],
+  // ) {
+  //   return this.eventService.registerUserInEvent(
+  //     idUser,
+  //     idEvent,
+  //     registrationRoleId,
+  //   );
+  // }
 
   @ApiOperation({ summary: 'All users' })
   @UseGuards(JwtAuthGuard)
