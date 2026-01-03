@@ -4,13 +4,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  Event,
-  GroupRoles,
-  Prisma,
-  PrismaService,
-  RolesRegistration,
-} from '../prisma';
+import { Event, Prisma, PrismaService } from '../prisma';
 import { EventDto } from './dto/event.dto';
 import { enviarEmailConfirmacao } from 'src/nodeMailer/sendEmail';
 
@@ -21,34 +15,57 @@ export class EventService {
   async registerUserInEvent(
     userId: string,
     eventId: string,
-    registrationRoleId: string[],
-    tx?: Prisma.TransactionClient,
+    registrationRoleIds: string[],
+    options?: {
+      tx?: Prisma.TransactionClient;
+      attempt?: number;
+    },
   ) {
-    const prisma = tx ?? this.prisma;
+    const MAX_RETRIES = 2;
+    const tx = options?.tx;
+    const attempt = options?.attempt ?? 1;
 
-    const result = tx
-      ? await this._registerUserInEventTx(
-          prisma,
-          userId,
-          eventId,
-          registrationRoleId,
-        )
-      : await this.prisma.$transaction(async (trx) =>
-          this._registerUserInEventTx(trx, userId, eventId, registrationRoleId),
-        );
+    try {
+      const result = tx
+        ? await this._registerUserInEventTx(
+            tx,
+            userId,
+            eventId,
+            registrationRoleIds,
+          )
+        : await this.prisma.$transaction(
+            async (trx) =>
+              this._registerUserInEventTx(
+                trx,
+                userId,
+                eventId,
+                registrationRoleIds,
+              ),
+            { isolationLevel: 'Serializable' },
+          );
 
-    // fora da transação
-    await enviarEmailConfirmacao(
-      result.user.fullName,
-      result.user.email,
-      false,
-      result.event.name,
-      result.event.startDate,
-      result.event.endDate,
-    );
+      await enviarEmailConfirmacao(
+        result.user.fullName,
+        result.user.email,
+        false,
+        result.event.name,
+        result.event.startDate,
+        result.event.endDate,
+      );
 
-    return result.results;
+      return result.results;
+    } catch (error: any) {
+      //  retry apenas para conflito de serialização
+      if (error?.code === '40001' && attempt <= MAX_RETRIES) {
+        return this.registerUserInEvent(userId, eventId, registrationRoleIds, {
+          attempt: attempt + 1,
+          tx,
+        });
+      }
+      throw error;
+    }
   }
+
   private async _registerUserInEventTx(
     tx: PrismaService | Prisma.TransactionClient,
     userId: string,
@@ -69,12 +86,25 @@ export class EventService {
       throw new BadRequestException('User already registered in event');
     }
 
-    /** 🔐 Regra: roles devem existir e ser de grupos diferentes */
+    //verifica na waitlist
+    const alreadyInWaitlist = await tx.waitlist.findFirst({
+      where: { userId, eventId },
+    });
+
+    if (alreadyInWaitlist) {
+      throw new BadRequestException('User already in waitlist for event');
+    }
+
+    /** Regra: roles devem existir e ser de grupos diferentes */
     const roles = await tx.rolesRegistration.findMany({
-      where: { id: { in: registrationRoleIds } },
+      where: {
+        id: { in: registrationRoleIds },
+        group: {
+          eventId,
+        },
+      },
       include: { group: true },
     });
-    console.log(registrationRoleIds);
 
     if (roles.length !== registrationRoleIds.length) {
       throw new BadRequestException('Invalid role(s)');
@@ -85,18 +115,18 @@ export class EventService {
       throw new BadRequestException('Roles must belong to different groups');
     }
 
-    /** 1️⃣ Cria a inscrição principal */
-    await tx.eventOnUsers.create({
-      data: { userId, eventId },
-    });
-
     const results = [];
 
-    /** 2️⃣ Processa role por role */
+    //Processa role por role */;
     for (const role of roles) {
       // 🔒 lock lógico no grupo
       const count = await tx.eventOnUsersRolesRegistration.count({
-        where: { roleRegistrationId: role.id },
+        where: {
+          role: {
+            groupId: role.groupId,
+          },
+          eventId,
+        },
       });
 
       if (role.group.capacity !== null && count >= role.group.capacity) {
@@ -111,6 +141,12 @@ export class EventService {
         results.push({ roleId: role.id, type: 'WAITLIST', data: waitlist });
         continue;
       }
+
+      await tx.eventOnUsers.upsert({
+        where: { userId_eventId: { userId, eventId } },
+        update: {},
+        create: { userId, eventId },
+      });
 
       const registration = await tx.eventOnUsersRolesRegistration.create({
         data: {
@@ -137,7 +173,6 @@ export class EventService {
         where: { userId_eventId: { userId: idUser, eventId: idEvent } },
       })
       .catch((err) => {
-        console.log(err);
         throw new InternalServerErrorException();
       });
   }
@@ -147,29 +182,32 @@ export class EventService {
     eventId: string,
     registrationRoleId: string[],
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      const relation = await tx.eventOnUsers.findUnique({
-        where: { userId_eventId: { userId, eventId } },
-      });
+    return this.prisma.$transaction(
+      async (tx) => {
+        const relation = await tx.eventOnUsers.findUnique({
+          where: { userId_eventId: { userId, eventId } },
+        });
 
-      if (!relation) {
-        throw new NotFoundException('User not registered in event');
-      }
+        if (!relation) {
+          throw new NotFoundException('User not registered in event');
+        }
 
-      await tx.eventOnUsers.deleteMany({
-        where: { userId, eventId },
-      });
+        await tx.eventOnUsers.deleteMany({
+          where: { userId, eventId },
+        });
 
-      // reaproveita regra de inscrição
-      const result = await this._registerUserInEventTx(
-        tx,
-        userId,
-        eventId,
-        registrationRoleId,
-      );
+        // reaproveita regra de inscrição
+        const result = await this._registerUserInEventTx(
+          tx,
+          userId,
+          eventId,
+          registrationRoleId,
+        );
 
-      return result.results;
-    });
+        return result.results;
+      },
+      { isolationLevel: 'Serializable' },
+    );
   }
 
   private handlerReturnAllEvents(events: any[]) {
@@ -195,30 +233,60 @@ export class EventService {
     }
     return transformData(events);
   }
-  private handleReturnUsersByEvent(users, idEvent) {
-    return users.map((user: any) => {
-      const userBedrooms =
-        user.bedrooms
-          ?.filter((b: any) => b.bedrooms?.eventId === idEvent)
-          .map((b: any) => b.bedrooms) ?? [];
-      const userTeamOnUsers =
-        user.TeamOnUsers?.filter((t: any) => t.team?.eventId === idEvent).map(
-          (t: any) => t.team,
-        ) ?? [];
-      const userEvent = user.events?.find((e: any) => e.eventId === idEvent);
 
-      delete user.events;
-      delete user.bedrooms;
-      delete user.TeamOnUsers;
+  private handleformatUsers(data: any[]) {
+    return data.map((item) => {
+      /** 🔹 Agrupa roles por grupo */
+      const groupsMap = new Map<string, any>();
+
+      for (const rr of item.rolesRegistration) {
+        const role = rr.role;
+        const group = role.group;
+
+        if (!groupsMap.has(group.id)) {
+          groupsMap.set(group.id, {
+            id: group.id,
+            name: group.name,
+            roles: [],
+          });
+        }
+
+        groupsMap.get(group.id).roles.push({
+          id: role.id,
+          description: role.description,
+          price: role.price,
+        });
+      }
+
+      /** 🔹 Quartos */
+      const bedrooms = item.user.bedrooms.map((b) => ({
+        id: b.bedrooms.id,
+        name: b.bedrooms.name,
+        capacity: b.bedrooms.capacity,
+      }));
+
+      /** 🔹 Times */
+      const teams = item.user.TeamOnUsers.map((t) => ({
+        id: t.team.id,
+        name: t.team.name,
+        capacity: t.team.capacity,
+      }));
+
       return {
-        ...user,
-        bedrooms: userBedrooms,
-        teams: userTeamOnUsers,
-        worker: userEvent?.worker || false,
-        paid: userEvent?.paid || false,
+        user: {
+          id: item.user.id,
+          fullName: item.user.fullName,
+          email: item.user.email,
+          cpf: item.user.cpf,
+          cellphone: item.user.cellphone,
+        },
+        groupsRegistration: Array.from(groupsMap.values()),
+        bedrooms,
+        teams,
       };
     });
   }
+
   async create(data: EventDto) {
     try {
       data.endDate = new Date(data.endDate);
@@ -570,7 +638,6 @@ export class EventService {
 
       await this.removeRelation(idUser, idEvent);
     } catch (error) {
-      console.log(error);
       throw new InternalServerErrorException(error.message);
     }
   }
@@ -601,73 +668,103 @@ export class EventService {
 
       await this.prisma.event.delete({ where: { id } });
     } catch (error) {
-      console.log(error);
       throw new InternalServerErrorException(error.message);
     }
   }
-  async findUsers(idEvent: string) {
-    return this.prisma.user
-      .findMany({
-        where: {
-          events: {
-            some: {
-              eventId: idEvent,
+
+  async findUsers(eventId: string) {
+    const rows = await this.prisma.eventOnUsers.findMany({
+      where: { eventId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            cpf: true,
+            cellphone: true,
+
+            bedrooms: {
+              where: {
+                bedrooms: {
+                  eventId,
+                },
+              },
+              include: {
+                bedrooms: {
+                  select: {
+                    id: true,
+                    name: true,
+                    capacity: true,
+                  },
+                },
+              },
             },
-          },
-        },
-        include: {
-          events: {
-            select: {
-              eventId: true,
-              payment: true,
-              rolesRegistration: {
-                select: {
-                  role: {
-                    select: {
-                      description: true,
-                      group: { select: { name: true } },
-                    },
+
+            TeamOnUsers: {
+              where: {
+                team: {
+                  eventId,
+                },
+              },
+              include: {
+                team: {
+                  select: {
+                    id: true,
+                    name: true,
+                    capacity: true,
                   },
                 },
               },
             },
           },
-          bedrooms: {
-            select: {
-              bedrooms: {
-                select: {
-                  name: true,
-                  id: true,
-                  eventId: true,
-                },
-              },
-            },
-          },
+        },
 
-          TeamOnUsers: {
-            select: {
-              team: {
-                select: {
-                  name: true,
-                  id: true,
-                  eventId: true,
+        rolesRegistration: {
+          include: {
+            role: {
+              select: {
+                id: true,
+                description: true,
+                price: true,
+                group: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
                 },
               },
             },
           },
         },
-      })
-      .then((users) => this.handleReturnUsersByEvent(users, idEvent));
+      },
+    });
+
+    return this.handleformatUsers(rows);
   }
+
   async findUsersInWaitlist(idEvent: string) {
     return this.prisma.waitlist.findMany({
       where: {
         eventId: idEvent,
       },
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            cpf: true,
+            cellphone: true,
+          },
+        },
         rolesRegistration: {
-          select: { price: true, group: { select: { name: true } } },
+          select: {
+            id: true,
+            description: true,
+            price: true,
+            group: { select: { id: true, name: true } },
+          },
         },
       },
     });
@@ -703,7 +800,7 @@ export class EventService {
         userId,
         eventId,
         [waitlistEntry.roleRegistrationId],
-        tx,
+        { tx },
       );
 
       await tx.waitlist.delete({
