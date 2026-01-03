@@ -68,17 +68,17 @@ model Event {
 }
 
 model EventOnUsers {
-  user               User              @relation(fields: [userId], references: [id])
+  user               User               @relation(fields: [userId], references: [id])
   userId             String // relation scalar field (used in the `@relation` attribute above)
-  event              Event             @relation(fields: [eventId], references: [id])
+  event              Event              @relation(fields: [eventId], references: [id])
   eventId            String // relation scalar field (used in the `@relation` attribute above)
   payment            Payment?
-  discount           Discounts?        @relation(fields: [discountId], references: [id])
+  discount           Discounts?         @relation(fields: [discountId], references: [id])
   discountId         String?
   registrationType   RegistrationTypes? @relation(fields: [registrationTypeId], references: [id])
   registrationTypeId String?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@id([userId, eventId])
 }
