@@ -113,12 +113,17 @@ export class EventController {
 
   @ApiOperation({ summary: 'Move user from waitlist to event' })
   @UseGuards(JwtAuthGuard)
-  @Post(':idEvent/waitlist/users/:idUser/to-event')
+  @Put(':idEvent/waitlist/users/:idUser/to-event')
   moveUserFromWaitlistToEvent(
     @Param('idEvent') idEvent: string,
     @Param('idUser') idUser: string,
+    @Body('roleRegistrationId') roleRegistrationId: string,
   ) {
-    return this.eventService.movedUserFromWaitlistToEvent(idUser, idEvent);
+    return this.eventService.movedUserFromWaitlistToEvent(
+      idUser,
+      idEvent,
+      roleRegistrationId,
+    );
   }
 
   @ApiOperation({ summary: 'Register user in event' })

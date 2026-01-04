@@ -807,28 +807,41 @@ export class EventService {
         throw new InternalServerErrorException();
       });
   }
-  async movedUserFromWaitlistToEvent(userId: string, eventId: string) {
-    return await this.prisma.$transaction(async (tx) => {
-      const waitlistEntry = await tx.waitlist.findFirst({
-        where: { userId, eventId },
-      });
+  async movedUserFromWaitlistToEvent(
+    userId: string,
+    eventId: string,
+    roleRegistrationId: string,
+  ) {
+    return await this.prisma.$transaction(
+      async (tx) => {
+        const waitlistEntry = await tx.waitlist.findFirst({
+          where: { userId, eventId, roleRegistrationId },
+        });
 
-      if (!waitlistEntry) {
-        throw new NotFoundException('Waitlist entry does not exist!');
-      }
+        if (!waitlistEntry) {
+          throw new NotFoundException('Waitlist entry does not exist!');
+        }
 
-      const registration = await this.registerUserInEvent(
-        userId,
-        eventId,
-        [waitlistEntry.roleRegistrationId],
-        { tx },
-      );
+        await tx.waitlist.delete({
+          where: { id: waitlistEntry.id },
+        });
 
-      await tx.waitlist.delete({
-        where: { id: waitlistEntry.id },
-      });
+        const registration = await this.registerUserInEvent(
+          userId,
+          eventId,
+          [waitlistEntry.roleRegistrationId],
+          { tx },
+        );
+        if (registration[0].type === 'WAITLIST') {
+          // se ainda ficou na waitlist, deve falar o tx
+          throw new BadRequestException(
+            'No available spots in event for this role',
+          );
+        }
 
-      return registration;
-    });
+        return registration;
+      },
+      { isolationLevel: 'Serializable' },
+    );
   }
 }
