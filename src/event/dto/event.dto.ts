@@ -74,3 +74,11 @@ export class EventDto {
   @IsString()
   type: EventType;
 }
+export class roleEventDto {
+  @ApiProperty({
+    description: 'IDs das regras de inscrição atribuídas ao usuário no evento',
+    example: ['uuid-v4', 'uuid-v4'],
+  })
+  @IsString({ each: true })
+  roleRegistrationId: string[];
+}

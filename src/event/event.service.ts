@@ -219,15 +219,20 @@ export class EventService {
           where: { userId, eventId },
         });
 
-        // reaproveita regra de inscrição
-        const result = await this._registerUserInEventTx(
-          tx,
+        const registration = await this.registerUserInEvent(
           userId,
           eventId,
           registrationRoleId,
+          { tx },
         );
+        if (registration.some((r: any) => r.type === 'WAITLIST')) {
+          // se ainda ficou na waitlist, deve falar o tx
+          throw new BadRequestException(
+            'No available spots in event for this role',
+          );
+        }
 
-        return result.results;
+        return registration;
       },
       { isolationLevel: 'Serializable' },
     );
@@ -790,9 +795,13 @@ export class EventService {
       },
     });
   }
-  async removeUserFromWaitlist(idUser: string, idEvent: string) {
+  async removeUserFromWaitlist(
+    idUser: string,
+    idEvent: string,
+    roleRegistrationId: string,
+  ) {
     const waitlistEntry = await this.prisma.waitlist.findFirst({
-      where: { userId: idUser, eventId: idEvent },
+      where: { userId: idUser, eventId: idEvent, roleRegistrationId },
     });
 
     if (!waitlistEntry) {

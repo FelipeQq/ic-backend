@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EventService } from './event.service';
-import { EventDto } from './dto/event.dto';
+import { EventDto, roleEventDto } from './dto/event.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/decorators/auth.guard';
 
@@ -78,12 +78,12 @@ export class EventController {
   updateUserFromEvent(
     @Param('idEvent') idEvent: string,
     @Param('idUser') idUser: string,
-    @Body() data: { registrationRoleId: string[] },
+    @Body() data: roleEventDto,
   ) {
     return this.eventService.updateUserFromEvent(
       idUser,
       idEvent,
-      data.registrationRoleId,
+      data.roleRegistrationId,
     );
   }
 
@@ -103,21 +103,26 @@ export class EventController {
 
   @ApiOperation({ summary: 'Remove user from waitlist' })
   @UseGuards(JwtAuthGuard)
-  @Delete(':idEvent/waitlist/users/:idUser')
+  @Delete(':idEvent/waitlist/users/:idUser/roles/:roleRegistrationId')
   removeUserFromWaitlist(
     @Param('idEvent') idEvent: string,
     @Param('idUser') idUser: string,
+    @Param('roleRegistrationId') roleRegistrationId: string,
   ) {
-    return this.eventService.removeUserFromWaitlist(idUser, idEvent);
+    return this.eventService.removeUserFromWaitlist(
+      idUser,
+      idEvent,
+      roleRegistrationId,
+    );
   }
 
   @ApiOperation({ summary: 'Move user from waitlist to event' })
   @UseGuards(JwtAuthGuard)
-  @Put(':idEvent/waitlist/users/:idUser/to-event')
+  @Put(':idEvent/waitlist/users/:idUser/roles/:roleRegistrationId')
   moveUserFromWaitlistToEvent(
     @Param('idEvent') idEvent: string,
     @Param('idUser') idUser: string,
-    @Body('roleRegistrationId') roleRegistrationId: string,
+    @Param('roleRegistrationId') roleRegistrationId: string,
   ) {
     return this.eventService.movedUserFromWaitlistToEvent(
       idUser,
@@ -127,17 +132,17 @@ export class EventController {
   }
 
   @ApiOperation({ summary: 'Register user in event' })
-  @Post(':idEvent/users/:idUser/register')
+  @Post(':idEvent/users/:idUser')
   @UseGuards(JwtAuthGuard)
   async createRelationEvent(
     @Param('idUser') idUser: string,
     @Param('idEvent') idEvent: string,
-    @Body('registrationRoleId') registrationRoleId: string[],
+    @Body() body: roleEventDto,
   ) {
     return this.eventService.registerUserInEvent(
       idUser,
       idEvent,
-      registrationRoleId,
+      body.roleRegistrationId,
     );
   }
 }
