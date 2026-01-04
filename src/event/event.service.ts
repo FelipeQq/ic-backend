@@ -72,28 +72,47 @@ export class EventService {
     eventId: string,
     registrationRoleIds: string[],
   ) {
+    //-------------------------- verificações iniciais --------------------------//
     const user = await tx.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
     const event = await tx.event.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
 
+    // Para verifica se incrição ja existe precisa verificar se a roles ja estao registradas
+    const existingRoles = await tx.eventOnUsersRolesRegistration.findMany({
+      where: {
+        userId,
+        eventId,
+        roleRegistrationId: { in: registrationRoleIds },
+      },
+    });
+    //verifica se ja esta registrado no evento
     const alreadyRegistered = await tx.eventOnUsers.findUnique({
       where: { userId_eventId: { userId, eventId } },
     });
 
-    if (alreadyRegistered) {
-      throw new BadRequestException('User already registered in event');
+    if (existingRoles.length > 0 && alreadyRegistered) {
+      throw new BadRequestException(
+        'User already registered with some roles in event ',
+      );
     }
 
-    //verifica na waitlist
-    const alreadyInWaitlist = await tx.waitlist.findFirst({
-      where: { userId, eventId },
+    //para verifica na waitlist
+    const existingWaitlist = await tx.waitlist.findMany({
+      where: {
+        userId,
+        eventId,
+        roleRegistrationId: { in: registrationRoleIds },
+      },
     });
 
-    if (alreadyInWaitlist) {
-      throw new BadRequestException('User already in waitlist for event');
+    if (existingWaitlist.length > 0) {
+      throw new BadRequestException(
+        'User already in waitlist for some roles in event',
+      );
     }
+    //--------------------------- regra de inscrição ---------------------------//
 
     /** Regra: roles devem existir e ser de grupos diferentes */
     const roles = await tx.rolesRegistration.findMany({
@@ -115,11 +134,12 @@ export class EventService {
       throw new BadRequestException('Roles must belong to different groups');
     }
 
-    const results = [];
+    //-------------------------- realiza inscrição --------------------------//
 
+    const results = [];
     //Processa role por role */;
     for (const role of roles) {
-      // 🔒 lock lógico no grupo
+      //verifica capacidade do grupo */
       const count = await tx.eventOnUsersRolesRegistration.count({
         where: {
           role: {
@@ -130,6 +150,7 @@ export class EventService {
       });
 
       if (role.group.capacity !== null && count >= role.group.capacity) {
+        // caso esteja cheio, coloca na waitlist
         const waitlist = await tx.waitlist.create({
           data: {
             userId,
@@ -141,6 +162,8 @@ export class EventService {
         results.push({ roleId: role.id, type: 'WAITLIST', data: waitlist });
         continue;
       }
+
+      //caso tenha vaga, registra no evento e cria um role de inscrição */
 
       await tx.eventOnUsers.upsert({
         where: { userId_eventId: { userId, eventId } },
@@ -448,8 +471,6 @@ export class EventService {
         users: {
           select: {
             user: true,
-            payment: true,
-            discount: true,
           },
         },
         groupRoles: {

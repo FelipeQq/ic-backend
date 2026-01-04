@@ -27,7 +27,6 @@ model User {
   state              String
   role               Int      @default(5) // admin = 1, user = 5
   registrationNumber Int      @unique @default(autoincrement())
-
   profilePhotoUrl    String?
   emergencyContact   String?
   indicatedBy        String?
@@ -67,14 +66,12 @@ model Event {
   @@map("events")
 }
 
+//tabela de incrição de usuários em eventos
 model EventOnUsers {
   user              User                            @relation(fields: [userId], references: [id])
   userId            String // relation scalar field (used in the `@relation` attribute above)
   event             Event                           @relation(fields: [eventId], references: [id])
   eventId           String // relation scalar field (used in the `@relation` attribute above)
-  payment           Payment?
-  discount          Discounts?                      @relation(fields: [discountId], references: [id])
-  discountId        String?
   rolesRegistration EventOnUsersRolesRegistration[] @relation("EventOnUsersRoles")
   createdAt         DateTime                        @default(now())
   updatedAt         DateTime                        @updatedAt
@@ -82,16 +79,21 @@ model EventOnUsers {
   @@id([userId, eventId])
 }
 
+//tabela de relação entre usuários inscritos em eventos e seus papéis de inscrição
 model EventOnUsersRolesRegistration {
   userId             String
   eventId            String
   roleRegistrationId String
+  discountId         String?
+  payment            Payment?
+  discount           Discounts?        @relation(fields: [discountId], references: [id], onDelete: SetNull)
   eventOnUsers       EventOnUsers      @relation(name: "EventOnUsersRoles", fields: [userId, eventId], references: [userId, eventId], onDelete: Cascade)
   role               RolesRegistration @relation(fields: [roleRegistrationId], references: [id], onDelete: Cascade)
 
   @@id([userId, eventId, roleRegistrationId])
 }
 
+//tabela de grupos de papéis de inscrição em eventos
 model GroupRoles {
   id       String              @id @default(uuid())
   name     String
@@ -103,6 +105,7 @@ model GroupRoles {
   @@map("group_roles")
 }
 
+//tabela de papéis de inscrição em eventos
 model RolesRegistration {
   id           String                          @id @default(uuid())
   description  String
@@ -116,30 +119,31 @@ model RolesRegistration {
 }
 
 model Discounts {
-  id          String         @id @default(uuid())
+  id          String                          @id @default(uuid())
   percentage  Float
   description String
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  users       EventOnUsers[]
+  createdAt   DateTime                        @default(now())
+  updatedAt   DateTime                        @updatedAt
+  registers   EventOnUsersRolesRegistration[]
 
   @@map("discounts")
 }
 
 model Payment {
-  id             String          @id @default(uuid())
-  eventOnUsers   EventOnUsers?   @relation(fields: [userId, eventId], references: [userId, eventId], onDelete: SetNull)
-  userId         String?
-  eventId        String?
-  method         PaymentMethod
-  status         PaymentStatus
-  receivedFrom   PaymentReceived @default(SYSTEM)
-  amount         Float
-  transactionRef Json?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id                              String                         @id @default(uuid())
+  eventUserRole                   EventOnUsersRolesRegistration? @relation(fields: [eventUserRoleUserId, eventUserRoleEventId, eventUserRoleRoleRegistrationId], references: [userId, eventId, roleRegistrationId], onDelete: Cascade)
+  eventUserRoleUserId             String?
+  eventUserRoleEventId            String?
+  eventUserRoleRoleRegistrationId String?
+  method                          PaymentMethod
+  status                          PaymentStatus
+  receivedFrom                    PaymentReceived                @default(SYSTEM)
+  amount                          Float
+  transactionRef                  Json?
+  createdAt                       DateTime                       @default(now())
+  updatedAt                       DateTime                       @updatedAt
 
-  @@unique([userId, eventId])
+  @@unique([eventUserRoleUserId, eventUserRoleEventId, eventUserRoleRoleRegistrationId])
   @@map("payments")
 }
 
