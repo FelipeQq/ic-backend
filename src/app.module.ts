@@ -8,6 +8,7 @@ import { AuthController } from './auth/auth.controller';
 import { AuthModule } from './auth/auth.module';
 import { PagbankModule } from './gateways/pagbank/pagbank.module';
 import { PaymentModule } from './payment/payment.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { PaymentModule } from './payment/payment.module';
     AuthModule,
     PagbankModule,
     PaymentModule,
+    WebhooksModule,
   ],
   controllers: [AuthController],
   providers: [],

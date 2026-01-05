@@ -1,52 +1,84 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PaymentStatus } from '@prisma/client';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/decorators/auth.guard';
 
-@Controller('payments')
+@ApiTags('payments')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller()
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
   // ===============================
-  // Criar pagamento
+  // Criar pagamento (usuário no evento)
   // ===============================
-  @Post()
-  async create(@Body() dto: CreatePaymentDto) {
-    return this.paymentService.createPayment(dto);
+  @ApiOperation({ summary: 'Create payment for user in event' })
+  @Post('events/:idEvent/users/:idUser/roles/:roleRegistrationId/payments')
+  create(
+    @Param('idEvent') eventId: string,
+    @Param('idUser') userId: string,
+    @Param('roleRegistrationId') roleRegistrationId: string,
+    @Body()
+    body: Omit<CreatePaymentDto, 'userId' | 'eventId' | 'roleRegistrationId'>,
+  ) {
+    return this.paymentService.createPayment({
+      ...body,
+      userId,
+      eventId,
+      roleRegistrationId,
+    });
+  }
+
+  // ===============================
+  // Pagamentos por evento
+  // ===============================
+  @ApiOperation({ summary: 'Get payments by event' })
+  @Get('events/:idEvent/payments')
+  findByEvent(@Param('idEvent') eventId: string) {
+    return this.paymentService.findPaymentsByEvent(eventId);
+  }
+
+  // ===============================
+  // Pagamentos por usuário no evento
+  // ===============================
+  @ApiOperation({ summary: 'Get payments by user in event' })
+  @Get('events/:idEvent/users/:idUser/payments')
+  findByUser(
+    @Param('idEvent') eventId: string,
+    @Param('idUser') userId: string,
+  ) {
+    return this.paymentService.findPaymentsByUser(userId);
   }
 
   // ===============================
   // Atualizar status do pagamento
   // ===============================
-  @Patch(':id/status/:status')
-  async updateStatus(
-    @Param('id') paymentId: string,
+  @ApiOperation({ summary: 'Update payment status' })
+  @Patch('payments/:paymentId/status/:status')
+  updateStatus(
+    @Param('paymentId') paymentId: string,
     @Param('status') status: PaymentStatus,
   ) {
     return this.paymentService.updatePaymentStatus(paymentId, status);
   }
 
   // ===============================
-  // Pagamentos por evento
-  // ===============================
-  @Get('event/:eventId')
-  async findByEvent(@Param('eventId') eventId: string) {
-    return this.paymentService.findPaymentsByEvent(eventId);
-  }
-
-  // ===============================
-  // Pagamentos por usuário
-  // ===============================
-  @Get('user/:userId')
-  async findByUser(@Param('userId') userId: string) {
-    return this.paymentService.findPaymentsByUser(userId);
-  }
-
-  // ===============================
   // Reembolso
   // ===============================
-  @Patch(':id/refund')
-  async refund(@Param('id') paymentId: string) {
+  @ApiOperation({ summary: 'Refund payment' })
+  @Patch('payments/:paymentId/refund')
+  refund(@Param('paymentId') paymentId: string) {
     return this.paymentService.refundPayment(paymentId);
   }
 }
