@@ -4,36 +4,14 @@ import { PagbankClient } from './pagbank.client';
 
 @Injectable()
 export class PagbankService {
-  private readonly client = new PagbankClient();
+  constructor(private readonly client: PagbankClient) {}
 
-  async createCheckout(dto: CreatePagbankCheckoutDto) {
-    const { data } = await this.client.sdk.criarCheckout(
-      this.client.authHeader,
-      {
-        reference_id: dto.referenceId,
-        items: [
-          {
-            name: dto.description,
-            quantity: 1,
-            unit_amount: dto.amount,
-          },
-        ],
-        customer: dto.customer,
-        redirect_urls: {
-          success: dto.successUrl,
-          cancel: dto.cancelUrl,
-        },
-        notification_urls: [dto.webhookUrl],
-      },
-    );
-
-    const checkoutUrl = data?.links?.find(
-      (link: any) => link.rel === 'checkout',
-    )?.href;
-
-    return {
-      checkoutUrl,
-      raw: data,
-    };
+  async createCheckout(data: CreatePagbankCheckoutDto) {
+    // Chama o cliente Pagbank para criar o checkout
+    //ajustar a forma como o sistema precisa do dado
+    return this.client.createCheckout(data, process.env.PAGBANK_TOKEN);
+  }
+  async getCheckout(checkoutId: string) {
+    return this.client.getCheckouts(checkoutId, process.env.PAGBANK_TOKEN);
   }
 }
