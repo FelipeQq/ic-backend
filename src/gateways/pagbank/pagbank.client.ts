@@ -1,5 +1,6 @@
 import { Injectable, HttpException } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
+import { CreatePagbankCheckoutDto } from './dto/create-checkout.dto';
 
 @Injectable()
 export class PagbankClient {
@@ -12,7 +13,7 @@ export class PagbankClient {
     });
   }
 
-  async createCheckout(payload: any, token: string) {
+  async createCheckout(payload: CreatePagbankCheckoutDto, token: string) {
     try {
       const response = await this.http.post('/checkouts', payload, {
         headers: {

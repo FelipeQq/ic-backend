@@ -11,9 +11,9 @@ export class CreatePaymentDto {
   @IsUUID()
   eventId: string;
 
-  @ApiProperty()
-  @IsUUID()
-  roleRegistrationId: string;
+  @ApiProperty({ type: [String] })
+  @IsUUID('4', { each: true })
+  roleRegistrationId: string[];
 
   @ApiProperty({ enum: PaymentMethod })
   @IsEnum(PaymentMethod)

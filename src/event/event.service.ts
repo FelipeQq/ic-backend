@@ -4,7 +4,14 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { Event, Prisma, PrismaService } from '../prisma';
+import {
+  Event,
+  PaymentMethod,
+  PaymentReceived,
+  PaymentStatus,
+  Prisma,
+  PrismaService,
+} from '../prisma';
 import { EventDto } from './dto/event.dto';
 import { enviarEmailConfirmacao } from 'src/nodeMailer/sendEmail';
 
@@ -73,54 +80,20 @@ export class EventService {
     registrationRoleIds: string[],
   ) {
     //-------------------------- verificações iniciais --------------------------//
-    const user = await tx.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+    // 1️⃣ Verifica usuário e evento (em paralelo)
+    const [user, event] = await Promise.all([
+      tx.user.findUnique({ where: { id: userId } }),
+      tx.event.findUnique({ where: { id: eventId } }),
+    ]);
 
-    const event = await tx.event.findUnique({ where: { id: eventId } });
+    if (!user) throw new NotFoundException('User not found');
     if (!event) throw new NotFoundException('Event not found');
 
-    // Para verifica se incrição ja existe precisa verificar se a roles ja estao registradas
-    const existingRoles = await tx.eventOnUsersRolesRegistration.findMany({
-      where: {
-        userId,
-        eventId,
-        roleRegistrationId: { in: registrationRoleIds },
-      },
-    });
-    //verifica se ja esta registrado no evento
-    const alreadyRegistered = await tx.eventOnUsers.findUnique({
-      where: { userId_eventId: { userId, eventId } },
-    });
-
-    if (existingRoles.length > 0 && alreadyRegistered) {
-      throw new BadRequestException(
-        'User already registered with some roles in event ',
-      );
-    }
-
-    //para verifica na waitlist
-    const existingWaitlist = await tx.waitlist.findMany({
-      where: {
-        userId,
-        eventId,
-        roleRegistrationId: { in: registrationRoleIds },
-      },
-    });
-
-    if (existingWaitlist.length > 0) {
-      throw new BadRequestException(
-        'User already in waitlist for some roles in event',
-      );
-    }
-    //--------------------------- regra de inscrição ---------------------------//
-
-    /** Regra: roles devem existir e ser de grupos diferentes */
+    // 2️⃣ Busca roles solicitadas (já com grupo)
     const roles = await tx.rolesRegistration.findMany({
       where: {
         id: { in: registrationRoleIds },
-        group: {
-          eventId,
-        },
+        group: { eventId },
       },
       include: { group: true },
     });
@@ -129,9 +102,58 @@ export class EventService {
       throw new BadRequestException('Invalid role(s)');
     }
 
+    // 3️⃣ Regra: roles devem ser de grupos diferentes
     const groupIds = roles.map((r) => r.groupId);
-    if (new Set(groupIds).size !== roles.length) {
+    if (new Set(groupIds).size !== groupIds.length) {
       throw new BadRequestException('Roles must belong to different groups');
+    }
+
+    // 4️⃣ Busca inscrições e waitlist existentes em UMA query lógica
+    const [existingRegistrations, existingWaitlist] = await Promise.all([
+      tx.eventOnUsersRolesRegistration.findMany({
+        where: { userId, eventId },
+        select: {
+          roleRegistrationId: true,
+          role: { select: { groupId: true } },
+        },
+      }),
+      tx.waitlist.findMany({
+        where: {
+          userId,
+          eventId,
+          roleRegistrationId: { in: registrationRoleIds },
+        },
+        select: { roleRegistrationId: true },
+      }),
+    ]);
+
+    // 5️⃣ Regra: não pode repetir role
+    const existingRoleIds = new Set(
+      existingRegistrations.map((r) => r.roleRegistrationId),
+    );
+
+    if (registrationRoleIds.some((id) => existingRoleIds.has(id))) {
+      throw new BadRequestException(
+        'User already registered with some roles in event',
+      );
+    }
+
+    // 6️⃣ Regra: não pode ter dois roles do mesmo grupo no mesmo evento
+    const existingGroupIds = new Set(
+      existingRegistrations.map((r) => r.role.groupId),
+    );
+
+    if (roles.some((r) => existingGroupIds.has(r.groupId))) {
+      throw new BadRequestException(
+        'User already registered in a role from the same group in this event',
+      );
+    }
+
+    // 7️⃣ Regra: não pode estar na waitlist
+    if (existingWaitlist.length > 0) {
+      throw new BadRequestException(
+        'User already in waitlist for some roles in event',
+      );
     }
 
     //-------------------------- realiza inscrição --------------------------//
@@ -162,6 +184,7 @@ export class EventService {
         results.push({ roleId: role.id, type: 'WAITLIST', data: waitlist });
         continue;
       }
+      //verifica se ja esta registrado no grupo
 
       //caso tenha vaga, registra no evento e cria um role de inscrição */
 
@@ -176,6 +199,14 @@ export class EventService {
           userId,
           eventId,
           roleRegistrationId: role.id,
+          payment: {
+            create: {
+              amount: role.price,
+              status: PaymentStatus.PENDING,
+              method: PaymentMethod.OTHER,
+              receivedFrom: PaymentReceived.SYSTEM,
+            },
+          },
         },
       });
 

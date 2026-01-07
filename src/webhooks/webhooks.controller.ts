@@ -7,9 +7,15 @@ import { WebhooksService } from './webhooks.service';
 export class WebhooksController {
   constructor(private readonly webhooksService: WebhooksService) {}
 
-  @ApiOperation({ summary: 'Webhook PagBank' })
-  @Post('pagbank/notifications')
+  @ApiOperation({ summary: 'Webhook PagBank Checkouts' })
+  @Post('/pagbank/checkouts')
   async handlePagbank(@Body() payload: any) {
+    return this.webhooksService.handlePagbankWebhook(payload);
+  }
+
+  @ApiOperation({ summary: 'Webhook PagBank Payments' })
+  @Post('/pagbank/payments')
+  async handlePagbankPayments(@Body() payload: any) {
     return this.webhooksService.handlePagbankWebhook(payload);
   }
 }

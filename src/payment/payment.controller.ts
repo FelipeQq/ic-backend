@@ -12,6 +12,7 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PaymentStatus } from '@prisma/client';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/decorators/auth.guard';
+import { CreatePaymentCheckoutDto } from './dto/create-payment-checkout.dto';
 
 @ApiTags('payments')
 @ApiBearerAuth()
@@ -23,20 +24,18 @@ export class PaymentController {
   // ===============================
   // Criar pagamento (usuário no evento)
   // ===============================
-  @ApiOperation({ summary: 'Create payment for user in event' })
-  @Post('events/:idEvent/users/:idUser/roles/:roleRegistrationId/payments')
+  @ApiOperation({ summary: 'Create payment checkout for user in event' })
+  @Post('events/:idEvent/users/:idUser')
   create(
     @Param('idEvent') eventId: string,
     @Param('idUser') userId: string,
-    @Param('roleRegistrationId') roleRegistrationId: string,
     @Body()
-    body: Omit<CreatePaymentDto, 'userId' | 'eventId' | 'roleRegistrationId'>,
+    body: Omit<CreatePaymentCheckoutDto, 'userId' | 'eventId'>,
   ) {
-    return this.paymentService.createPayment({
-      ...body,
+    return this.paymentService.createCheckout({
       userId,
       eventId,
-      roleRegistrationId,
+      roleRegistrationId: body.roleRegistrationId,
     });
   }
 

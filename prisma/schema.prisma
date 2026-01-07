@@ -130,21 +130,34 @@ model Discounts {
 }
 
 model Payment {
-  id                              String                         @id @default(uuid())
-  eventUserRole                   EventOnUsersRolesRegistration? @relation(fields: [eventUserRoleUserId, eventUserRoleEventId, eventUserRoleRoleRegistrationId], references: [userId, eventId, roleRegistrationId], onDelete: Cascade)
-  eventUserRoleUserId             String?
-  eventUserRoleEventId            String?
-  eventUserRoleRoleRegistrationId String?
-  method                          PaymentMethod
-  status                          PaymentStatus
-  receivedFrom                    PaymentReceived                @default(SYSTEM)
-  amount                          Float
-  transactionRef                  Json?
-  createdAt                       DateTime                       @default(now())
-  updatedAt                       DateTime                       @updatedAt
+  id                 String                         @id @default(uuid())
+  eventUserRole      EventOnUsersRolesRegistration? @relation(fields: [userId, eventId, roleRegistrationId], references: [userId, eventId, roleRegistrationId], onDelete: Cascade)
+  userId             String?
+  eventId            String?
+  roleRegistrationId String?
+  status             PaymentStatus
+  method             PaymentMethod
+  amount             Float
+  receivedFrom       PaymentReceived                @default(SYSTEM)
+  checkouts          PaymentCheckout[]
+  createdAt          DateTime                       @default(now())
+  updatedAt          DateTime                       @updatedAt
 
-  @@unique([eventUserRoleUserId, eventUserRoleEventId, eventUserRoleRoleRegistrationId])
+  @@unique([userId, eventId, roleRegistrationId])
   @@map("payments")
+}
+
+model PaymentCheckout {
+  id         String         @id @default(uuid())
+  payment    Payment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  paymentId  String
+  checkoutId String         @unique
+  status     CheckoutStatus
+  amount     Float
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@map("payment_checkouts")
 }
 
 model Waitlist {
@@ -237,4 +250,10 @@ enum PaymentStatus {
   PAID
   CANCELED
   REFUNDED
+}
+
+enum CheckoutStatus {
+  CREATED
+  EXPIRED
+  CANCELED
 }
