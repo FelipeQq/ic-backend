@@ -5,11 +5,16 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
-import { CheckoutStatus, PaymentReceived, PaymentStatus } from '@prisma/client';
+import {
+  CheckoutStatus,
+  PaymentMethod,
+  PaymentReceived,
+  PaymentStatus,
+} from '@prisma/client';
 import { CreatePaymentCheckoutDto } from './dto/create-payment-checkout.dto';
 import { CreatePagbankCheckoutDto } from 'src/gateways/pagbank/dto/create-checkout.dto';
 import { PagbankService } from 'src/gateways/pagbank/pagbank.service';
-
+import { randomUUID } from 'crypto';
 @Injectable()
 export class PaymentService {
   constructor(
@@ -53,9 +58,7 @@ export class PaymentService {
     });
     //------------------------ data ------------------------------------------
     const data: CreatePagbankCheckoutDto = {
-      reference_id: `event-${eventId}-user-${userId}-roles-${roleRegistrationId.join(
-        ',',
-      )}`,
+      reference_id: randomUUID(),
       items: tickets.map((ticket) => ({
         reference_id: ticket.id,
         description: ticket.description,
@@ -100,58 +103,71 @@ export class PaymentService {
     });
     return result;
   }
-
-  // ===============================
-  // Atualizar status do pagamento
-  // ===============================
+  async updatePayment(
+    checkoutId: string,
+    status: PaymentStatus,
+    method: PaymentMethod,
+    payload: any,
+  ) {
+    const payment = await this.prisma.paymentCheckout.findUnique({
+      where: { checkoutId },
+      include: { payment: true },
+    });
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+    // marcar como recebido
+    await this.prisma.payment.update({
+      where: { id: payment.payment.id },
+      data: {
+        method,
+        status,
+        payload,
+      },
+    });
+  }
   async updatePaymentStatus(paymentId: string, status: PaymentStatus) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
     });
-
     if (!payment) {
       throw new NotFoundException('Payment not found');
     }
-
     return this.prisma.payment.update({
       where: { id: paymentId },
       data: { status },
     });
   }
 
-  // ===============================
-  // Buscar pagamentos por evento
-  // ===============================
+  async updatePaymentCheckoutStatus(
+    checkoutId: string,
+    status: CheckoutStatus,
+  ) {
+    const paymentCheckout = await this.prisma.paymentCheckout.findUnique({
+      where: { checkoutId },
+    });
+    if (!paymentCheckout) {
+      throw new NotFoundException('Payment checkout not found');
+    }
+    return this.prisma.paymentCheckout.update({
+      where: { checkoutId },
+      data: { status },
+    });
+  }
+
   async findPaymentsByEvent(eventId: string) {
     return this.prisma.payment.findMany({
       where: {
         eventId,
       },
       include: {
-        eventUserRole: {
-          include: {
-            role: true,
-          },
-        },
-      },
-    });
-  }
-
-  // ===============================
-  // Buscar pagamentos por usuário
-  // ===============================
-  async findPaymentsByUser(userId: string) {
-    return this.prisma.payment.findMany({
-      where: {
-        userId,
-      },
-      include: {
+        checkouts: true,
         eventUserRole: {
           include: {
             role: true,
             eventOnUsers: {
               include: {
-                event: true,
+                user: true,
               },
             },
           },
@@ -160,9 +176,28 @@ export class PaymentService {
     });
   }
 
-  // ===============================
-  // Cancelar / Reembolsar pagamento
-  // ===============================
+  async findPaymentsByUser(userId: string, eventId?: string) {
+    return this.prisma.payment.findMany({
+      where: {
+        userId,
+        ...(eventId && { eventId }),
+      },
+      include: {
+        checkouts: true,
+        eventUserRole: {
+          include: {
+            role: true,
+            eventOnUsers: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async refundPayment(paymentId: string) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },

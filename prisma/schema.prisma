@@ -138,6 +138,7 @@ model Payment {
   status             PaymentStatus
   method             PaymentMethod
   amount             Float
+  payload            Json?
   receivedFrom       PaymentReceived                @default(SYSTEM)
   checkouts          PaymentCheckout[]
   createdAt          DateTime                       @default(now())
@@ -241,7 +242,7 @@ enum PaymentMethod {
   CREDIT_CARD
   DEBIT_CARD
   CASH
-  TRANSFER
+  BOLETO
   OTHER
 }
 
@@ -256,4 +257,5 @@ enum CheckoutStatus {
   CREATED
   EXPIRED
   CANCELED
+  INACTIVE
 }
