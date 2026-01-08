@@ -30,7 +30,7 @@ export class PaymentController {
   // Criar pagamento (usuário no evento)
   // ===============================
   @ApiOperation({ summary: 'Create payment checkout for user in event' })
-  @Post('events/:idEvent/users/:idUser')
+  @Post('events/:idEvent/users/:idUser/payments')
   create(
     @Param('idEvent') eventId: string,
     @Param('idUser') userId: string,
