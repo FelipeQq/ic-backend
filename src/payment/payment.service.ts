@@ -59,6 +59,18 @@ export class PaymentService {
     //------------------------ data ------------------------------------------
     const data: CreatePagbankCheckoutDto = {
       reference_id: randomUUID(),
+      soft_descriptor: 'Igreja de cristo',
+      //webhooks
+      payment_notification_urls: ['https://pagseguro.uol.com.br'],
+      notification_urls: ['https://pagseguro.uol.com.br'],
+      //urls de redirecionamento
+      redirect_url: 'https://pagseguro.uol.com.br',
+      return_url: 'https://pagseguro.uol.com.br',
+      //expiration_date: '2023-08-14T19:09:10-03:00', se não informado será 2 horas
+      customer_modifiable: true,
+      additional_amount: 0,
+      discount_amount: 0,
+
       items: tickets.map((ticket) => ({
         reference_id: ticket.id,
         description: ticket.description,
@@ -67,24 +79,13 @@ export class PaymentService {
         unit_amount: ticket.price, // em centavos
       })),
       payment_methods: [
-        { type: 'credit_card', brands: ['mastercard'] },
-        { type: 'credit_card', brands: ['visa'] },
-        { type: 'debit_card', brands: ['visa'] },
-        { type: 'PIX' },
+        { type: 'CREDIT_CARD' },
+        { type: 'DEBIT_CARD' },
         { type: 'BOLETO' },
+        { type: 'PIX' },
       ],
-      //webhooks
-      payment_notification_urls: ['https://pagseguro.uol.com.br'],
-      notification_urls: ['https://pagseguro.uol.com.br'],
-      //urls de redirecionamento
-      redirect_url: 'https://pagseguro.uol.com.br',
-      return_url: 'https://pagseguro.uol.com.br',
-
-      expiration_date: '2023-08-14T19:09:10-03:00',
-      customer_modifiable: true,
-      additional_amount: 0,
-      discount_amount: 0,
     };
+    return data;
     //------------------------ fim data ------------------------------------------
 
     const result = await this.pagbankService.createCheckout(data);

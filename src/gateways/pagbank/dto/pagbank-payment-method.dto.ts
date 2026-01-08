@@ -3,9 +3,9 @@ import { ApiProperty } from '@nestjs/swagger';
 export class PagbankPaymentMethodDto {
   @ApiProperty({
     example: 'credit_card',
-    enum: ['credit_card', 'debit_card', 'PIX', 'BOLETO'],
+    enum: ['CREDIT_CARD', 'DEBIT_CARD', 'PIX', 'BOLETO'],
   })
-  type: 'credit_card' | 'debit_card' | 'PIX' | 'BOLETO';
+  type: 'CREDIT_CARD' | 'DEBIT_CARD' | 'PIX' | 'BOLETO';
 
   @ApiProperty({
     example: ['visa', 'mastercard'],

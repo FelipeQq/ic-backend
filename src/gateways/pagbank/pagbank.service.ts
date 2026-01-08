@@ -9,9 +9,9 @@ export class PagbankService {
   async createCheckout(data: CreatePagbankCheckoutDto) {
     // Chama o cliente Pagbank para criar o checkout
     //ajustar a forma como o sistema precisa do dado
-    return this.client.createCheckout(data, process.env.PAGBANK_TOKEN);
+    return this.client.createCheckout(data);
   }
   async getCheckout(checkoutId: string) {
-    return this.client.getCheckouts(checkoutId, process.env.PAGBANK_TOKEN);
+    return this.client.getCheckouts(checkoutId);
   }
 }
