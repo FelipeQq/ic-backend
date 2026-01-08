@@ -860,7 +860,6 @@ export class EventService {
     eventId: string,
     roleRegistrationId: string,
   ) {
-    console.log(userId, eventId, roleRegistrationId);
     return await this.prisma.$transaction(
       async (tx) => {
         const waitlistEntry = await tx.waitlist.findFirst({
