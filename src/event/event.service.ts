@@ -276,6 +276,7 @@ export class EventService {
           ...event,
           bedroom: event._count.bedrooms,
           team: event._count.Team,
+          waitlist: event._count.waitlist,
           groupRoles: event.groupRoles.map((group: any) => ({
             name: group.name,
             capacity: group.capacity,
@@ -489,6 +490,7 @@ export class EventService {
           },
           _count: {
             select: {
+              waitlist: true,
               bedrooms: true,
               Team: true,
             },
@@ -501,7 +503,7 @@ export class EventService {
   }
 
   async findOne(id: string) {
-    return await this.prisma.event.findFirst({
+    const event = await this.prisma.event.findUnique({
       where: { id },
       include: {
         users: {
@@ -516,6 +518,10 @@ export class EventService {
         },
       },
     });
+    if (!event) {
+      throw new NotFoundException('Event does not exist');
+    }
+    return event;
     //.then((event) => this.handlerReturnEvent(event));
   }
   async findOneClear(id: string) {
@@ -694,6 +700,7 @@ export class EventService {
       }
 
       await this.removeRelation(idUser, idEvent);
+      return { message: 'User removed from event successfully' };
     } catch (error) {
       throw new InternalServerErrorException(error.message);
     }
@@ -724,6 +731,7 @@ export class EventService {
       }
 
       await this.prisma.event.delete({ where: { id } });
+      return { message: `Event ${id} deleted successfully` };
     } catch (error) {
       throw new InternalServerErrorException(error.message);
     }
@@ -852,6 +860,7 @@ export class EventService {
     eventId: string,
     roleRegistrationId: string,
   ) {
+    console.log(userId, eventId, roleRegistrationId);
     return await this.prisma.$transaction(
       async (tx) => {
         const waitlistEntry = await tx.waitlist.findFirst({

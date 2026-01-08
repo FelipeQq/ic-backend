@@ -1,6 +1,53 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { EventType } from '@prisma/client';
-import { IsBoolean, IsInt, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsBoolean,
+  IsDateString,
+  IsInt,
+  IsObject,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
+
+class RoleDto {
+  @IsOptional()
+  @IsString()
+  groupId: string;
+
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @IsInt()
+  price: number;
+
+  @IsString()
+  description: string;
+}
+
+class GroupRoleDto {
+  @IsString()
+  @IsOptional()
+  eventId?: string;
+
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @IsString()
+  name: string;
+
+  @IsInt()
+  capacity: number;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RoleDto)
+  roles: RoleDto[];
+}
 export class EventDto {
   @ApiProperty({
     example: 'Retiro 2023',
@@ -14,6 +61,7 @@ export class EventDto {
     description: 'Link do grupo do whatsapp',
   })
   @IsString()
+  @IsOptional()
   groupLink: string;
 
   @ApiProperty({
@@ -27,12 +75,14 @@ export class EventDto {
     example: '2023-02-17',
     description: 'Data que devera acontecer o evento',
   })
+  @IsDateString()
   startDate: Date;
 
   @ApiProperty({
     example: '2023-02-17',
     description: 'Data que devera encerrar o evento',
   })
+  @IsDateString()
   endDate: Date;
 
   @ApiProperty({
@@ -56,16 +106,18 @@ export class EventDto {
       },
     ],
   })
-  groupRoles?: {
-    id?: string;
-    name: string;
-    capacity: number;
-    roles: { id?: string; price: number; description: string }[];
-  }[];
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => GroupRoleDto)
+  groupRoles?: GroupRoleDto[];
+
   @ApiProperty({
     example: { local: 'Auditório Principal', address: 'Rua XYZ, 123' },
     description: 'Dados adicionais do evento',
   })
+  @IsObject()
+  @IsOptional()
   data: Object;
   @ApiProperty({
     example: 'CURSILHO',
