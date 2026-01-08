@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,108 +8,102 @@ datasource db {
 }
 
 model User {
-  id                 String   @id @default(uuid())
+  id                 String            @id @default(uuid())
   email              String
-  password           String   @default("$2b$10$QGF/lucztAy.bqQFEQcSOOjP3fGMZfSsCIl4t.dfFo15Hh0v/C8xW")
   fullName           String
-  cpf                String   @unique
+  cpf                String            @unique
   birthday           DateTime
   cellphone          String
-  worker             Boolean
-  diabetes           Boolean
-  hypertensive       Boolean
-  profession         String
-  neighborhood       String
-  city               String
-  state              String
-  role               Int      @default(5) // admin = 1, user = 5
-  registrationNumber Int      @unique @default(autoincrement())
-  profilePhotoUrl    String?
-  emergencyContact   String?
-  indicatedBy        String?
-  leadershipPosition String?
   religion           String?
   notes              String?
+  createdAt          DateTime          @default(now())
+  updateAt           DateTime          @updatedAt
+  city               String
+  diabetes           Boolean
+  emergencyContact   String?
+  hypertensive       Boolean
+  indicatedBy        String?
+  leadershipPosition String?
+  profession         String
+  profilePhotoUrl    String?
+  role               Int               @default(5)
+  state              String
+  worker             Boolean
+  registrationNumber Int               @unique @default(autoincrement())
+  neighborhood       String
   badgeName          String?
-
-  createdAt DateTime @default(now())
-  updateAt  DateTime @updatedAt
-
-  events      EventOnUsers[]
-  bedrooms    BedroomsOnUsers[]
-  TeamOnUsers TeamOnUsers[]
-  waitlists   Waitlist[]
+  password           String            @default("$2b$10$QGF/lucztAy.bqQFEQcSOOjP3fGMZfSsCIl4t.dfFo15Hh0v/C8xW")
+  bedrooms           BedroomsOnUsers[]
+  events             EventOnUsers[]
+  TeamOnUsers        TeamOnUsers[]
+  waitlists          Waitlist[]
 
   @@map("users")
 }
 
 model Event {
   id         String         @id @default(uuid())
-  type       EventType      @default(CURSILHO)
   name       String
   startDate  DateTime
   endDate    DateTime
-  data       Json?
-  groupLink  String?
-  isActive   Boolean        @default(false)
   createdAt  DateTime       @default(now())
   updateAt   DateTime       @updatedAt
+  isActive   Boolean        @default(false)
+  groupLink  String?
+  type       EventType      @default(CURSILHO)
+  data       Json?
   users      EventOnUsers[]
-  groupRoles GroupRoles[]
   bedrooms   Bedrooms[]
+  groupRoles GroupRoles[]
   Team       Team[]
   waitlist   Waitlist[]
 
   @@map("events")
 }
 
-//tabela de incrição de usuários em eventos
 model EventOnUsers {
-  user              User                            @relation(fields: [userId], references: [id])
-  userId            String // relation scalar field (used in the `@relation` attribute above)
-  event             Event                           @relation(fields: [eventId], references: [id])
-  eventId           String // relation scalar field (used in the `@relation` attribute above)
-  rolesRegistration EventOnUsersRolesRegistration[] @relation("EventOnUsersRoles")
+  userId            String
+  eventId           String
   createdAt         DateTime                        @default(now())
   updatedAt         DateTime                        @updatedAt
+  event             Event                           @relation(fields: [eventId], references: [id])
+  user              User                            @relation(fields: [userId], references: [id])
+  rolesRegistration EventOnUsersRolesRegistration[] @relation("EventOnUsersRoles")
 
   @@id([userId, eventId])
 }
 
-//tabela de relação entre usuários inscritos em eventos e seus papéis de inscrição
 model EventOnUsersRolesRegistration {
   userId             String
   eventId            String
   roleRegistrationId String
   discountId         String?
-  payment            Payment?
-  discount           Discounts?        @relation(fields: [discountId], references: [id], onDelete: SetNull)
-  eventOnUsers       EventOnUsers      @relation(name: "EventOnUsersRoles", fields: [userId, eventId], references: [userId, eventId], onDelete: Cascade)
+  discount           Discounts?        @relation(fields: [discountId], references: [id])
   role               RolesRegistration @relation(fields: [roleRegistrationId], references: [id], onDelete: Cascade)
+  eventOnUsers       EventOnUsers      @relation("EventOnUsersRoles", fields: [userId, eventId], references: [userId, eventId], onDelete: Cascade)
+  payment            Payment?
 
   @@id([userId, eventId, roleRegistrationId])
 }
 
-//tabela de grupos de papéis de inscrição em eventos
 model GroupRoles {
   id       String              @id @default(uuid())
   name     String
   capacity Int?
-  event    Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
   eventId  String
+  event    Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
   roles    RolesRegistration[]
 
   @@map("group_roles")
 }
 
-//tabela de papéis de inscrição em eventos
 model RolesRegistration {
   id           String                          @id @default(uuid())
+  price        Float
   description  String
   groupId      String
-  group        GroupRoles                      @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  price        Float
   EventOnUsers EventOnUsersRolesRegistration[]
+  group        GroupRoles                      @relation(fields: [groupId], references: [id], onDelete: Cascade)
   Waitlist     Waitlist[]
 
   @@map("roles_registration_types")
@@ -131,18 +122,18 @@ model Discounts {
 
 model Payment {
   id                 String                         @id @default(uuid())
-  eventUserRole      EventOnUsersRolesRegistration? @relation(fields: [userId, eventId, roleRegistrationId], references: [userId, eventId, roleRegistrationId], onDelete: Cascade)
-  userId             String?
-  eventId            String?
-  roleRegistrationId String?
-  status             PaymentStatus
   method             PaymentMethod
-  amount             Float
-  payload            Json?
+  status             PaymentStatus
   receivedFrom       PaymentReceived                @default(SYSTEM)
-  checkouts          PaymentCheckout[]
+  amount             Float
   createdAt          DateTime                       @default(now())
   updatedAt          DateTime                       @updatedAt
+  eventId            String?
+  roleRegistrationId String?
+  userId             String?
+  payload            Json?
+  checkouts          PaymentCheckout[]
+  eventUserRole      EventOnUsersRolesRegistration? @relation(fields: [userId, eventId, roleRegistrationId], references: [userId, eventId, roleRegistrationId], onDelete: Cascade)
 
   @@unique([userId, eventId, roleRegistrationId])
   @@map("payments")
@@ -150,74 +141,72 @@ model Payment {
 
 model PaymentCheckout {
   id         String         @id @default(uuid())
-  payment    Payment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   paymentId  String
   checkoutId String         @unique
   status     CheckoutStatus
   amount     Float
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
+  payment    Payment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   @@map("payment_checkouts")
 }
 
 model Waitlist {
   id                 String             @id @default(uuid())
-  user               User               @relation(fields: [userId], references: [id])
   userId             String
-  event              Event              @relation(fields: [eventId], references: [id])
   eventId            String
-  rolesRegistration  RolesRegistration? @relation(fields: [roleRegistrationId], references: [id])
-  roleRegistrationId String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+  roleRegistrationId String?
+  event              Event              @relation(fields: [eventId], references: [id])
+  rolesRegistration  RolesRegistration? @relation(fields: [roleRegistrationId], references: [id])
+  user               User               @relation(fields: [userId], references: [id])
 
   @@unique([userId, eventId])
   @@map("waitlist")
 }
 
 model Bedrooms {
-  id       String   @id @default(uuid())
-  name     String   @default("Quarto sem nome")
+  id       String            @id @default(uuid())
   note     String?
-  capacity Int?
-  tag      String[]
-  event    Event    @relation(fields: [eventId], references: [id])
   eventId  String
-
-  users BedroomsOnUsers[]
+  capacity Int?
+  name     String            @default("Quarto sem nome")
+  tag      String[]
+  users    BedroomsOnUsers[]
+  event    Event             @relation(fields: [eventId], references: [id])
 
   @@map("bedrooms")
 }
 
 model BedroomsOnUsers {
-  user       User     @relation(fields: [userId], references: [id])
-  userId     String // relation scalar field (used in the `@relation` attribute above)
+  userId     String
+  bedroomsId String
   bedrooms   Bedrooms @relation(fields: [bedroomsId], references: [id])
-  bedroomsId String // relation scalar field (used in the `@relation` attribute above)
+  user       User     @relation(fields: [userId], references: [id])
 
   @@id([userId, bedroomsId])
 }
 
 model Team {
-  id       String  @id @default(uuid())
+  id       String        @id @default(uuid())
   name     String
+  eventId  String
   capacity Int?
   note     String?
-  event    Event   @relation(fields: [eventId], references: [id])
-  eventId  String
-
-  users TeamOnUsers[]
+  users    TeamOnUsers[]
+  event    Event         @relation(fields: [eventId], references: [id])
 
   @@map("teams")
 }
 
 model TeamOnUsers {
-  user   User     @relation(fields: [userId], references: [id])
-  userId String // relation scalar field (used in the `@relation` attribute above)
-  team   Team     @relation(fields: [teamId], references: [id])
-  teamId String // relation scalar field (used in the `@relation` attribute above)
+  userId String
+  teamId String
   role   TeamRole @default(MEMBER)
+  team   Team     @relation(fields: [teamId], references: [id])
+  user   User     @relation(fields: [userId], references: [id])
 
   @@id([userId, teamId])
 }
