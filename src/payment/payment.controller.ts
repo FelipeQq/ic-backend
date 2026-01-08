@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
@@ -12,7 +13,11 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PaymentStatus } from '@prisma/client';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/decorators/auth.guard';
-import { CreatePaymentCheckoutDto } from './dto/create-payment-checkout.dto';
+import {
+  CreatePaymentCheckoutDto,
+  payloadCreatePaymentCheckoutDto,
+} from './dto/create-payment-checkout.dto';
+import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
 
 @ApiTags('payments')
 @ApiBearerAuth()
@@ -29,8 +34,7 @@ export class PaymentController {
   create(
     @Param('idEvent') eventId: string,
     @Param('idUser') userId: string,
-    @Body()
-    body: Omit<CreatePaymentCheckoutDto, 'userId' | 'eventId'>,
+    @Body() body: payloadCreatePaymentCheckoutDto,
   ) {
     return this.paymentService.createCheckout({
       userId,
@@ -64,12 +68,12 @@ export class PaymentController {
   // Atualizar status do pagamento
   // ===============================
   @ApiOperation({ summary: 'Update payment status' })
-  @Patch('payments/:paymentId/status/:status')
+  @Put('payments/:paymentId')
   updateStatus(
     @Param('paymentId') paymentId: string,
-    @Param('status') status: PaymentStatus,
+    @Body() body: UpdatePaymentStatusDto,
   ) {
-    return this.paymentService.updatePaymentStatus(paymentId, status);
+    return this.paymentService.updatePaymentStatus(paymentId, body.status);
   }
 
   // ===============================

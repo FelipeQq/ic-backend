@@ -14,3 +14,8 @@ export class CreatePaymentCheckoutDto {
   @IsUUID('4', { each: true })
   roleRegistrationId: string[];
 }
+export class payloadCreatePaymentCheckoutDto {
+  @ApiProperty({ type: [String] })
+  @IsUUID('4', { each: true })
+  roleRegistrationId: string[];
+}
