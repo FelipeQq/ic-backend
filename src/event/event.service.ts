@@ -202,7 +202,7 @@ export class EventService {
           payment: {
             create: {
               amount: role.price,
-              status: PaymentStatus.PENDING,
+              status: PaymentStatus.WAITING,
               method: PaymentMethod.OTHER,
               receivedFrom: PaymentReceived.SYSTEM,
             },

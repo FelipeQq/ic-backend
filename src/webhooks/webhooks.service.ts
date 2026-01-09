@@ -8,7 +8,6 @@ export class WebhooksService {
   constructor(private readonly paymentService: PaymentService) {}
 
   async handlePagbankWebhookPayments(body: any) {
-    console.log('PagBank Payments Webhook Payload:', body);
     const { charges } = body as { charges: PagbankChargeDto[] };
     if (!charges || charges.length === 0) {
       return;
@@ -27,17 +26,10 @@ export class WebhooksService {
     if (!selectedCharge) {
       return;
     }
-    const referenceId = selectedCharge.id;
+    const referenceId = selectedCharge.reference_id;
     const status = this.mapStatus(selectedCharge.status);
     const method = this.mapMethod(selectedCharge.payment_method?.type);
     const payload = selectedCharge.payment_method;
-
-    console.log('Processing Payment Webhook:', {
-      referenceId,
-      status,
-      method,
-      payload,
-    });
 
     await this.paymentService.updatePaymentWebhook(
       referenceId,
@@ -48,11 +40,9 @@ export class WebhooksService {
   }
 
   async handlePagbankWebhookCheckouts(body: any) {
-    console.log('PagBank Checkouts Webhook Payload:', body);
     const status = await this.mapStatusCheckout(body.status);
     const referenceId = body.id;
 
-    console.log('Processing Checkout Webhook:', { referenceId, status });
     return this.paymentService.updatePaymentCheckoutWebhook(
       referenceId,
       status,
@@ -78,10 +68,8 @@ export class WebhooksService {
 
   private async mapStatusCheckout(status: string): Promise<CheckoutStatus> {
     switch (status) {
-      case 'CREATED':
-        return CheckoutStatus.CREATED;
-      case 'CANCELED':
-        return CheckoutStatus.CANCELED;
+      case 'ACTIVE':
+        return CheckoutStatus.ACTIVE;
       case 'EXPIRED':
         return CheckoutStatus.EXPIRED;
       case 'INACTIVE':
@@ -95,12 +83,16 @@ export class WebhooksService {
     switch (status) {
       case 'PAID':
         return PaymentStatus.PAID;
+      case 'IN_ANALYSIS':
+        return PaymentStatus.IN_ANALYSIS;
+      case 'DECLINED':
+        return PaymentStatus.DECLINED;
       case 'CANCELED':
         return PaymentStatus.CANCELED;
       case 'REFUNDED':
         return PaymentStatus.REFUNDED;
       default:
-        return PaymentStatus.PENDING;
+        return PaymentStatus.WAITING;
     }
   }
 }

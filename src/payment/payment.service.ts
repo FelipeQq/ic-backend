@@ -83,7 +83,7 @@ export class PaymentService {
       //  checkouts ativos
       const activeCheckouts = unpaidPayments
         .flatMap((p) => p.checkouts)
-        .filter((c) => c.status === CheckoutStatus.CREATED);
+        .filter((c) => c.status === CheckoutStatus.ACTIVE);
 
       //  se existir apenas UM checkout ativo e único → reutiliza
       const uniqueCheckoutIds = new Set(
@@ -103,7 +103,7 @@ export class PaymentService {
           where: {
             id: { in: activeCheckouts.map((c) => c.id) },
           },
-          data: { status: CheckoutStatus.CANCELED },
+          data: { status: CheckoutStatus.INACTIVE },
         });
       }
       //Obs: é bom intivar tb a API do PagBank para cancelar o checkout lá, mas eles vão expirar sozinhos em 2h
@@ -178,7 +178,8 @@ export class PaymentService {
           paymentId: payment.id,
           checkoutId: result.id,
           link: linkPay,
-          status: CheckoutStatus.CREATED,
+          referenceId: data.reference_id,
+          status: CheckoutStatus.ACTIVE,
           amount: tickets.reduce((sum, t) => sum + t.price, 0),
         })),
       });
@@ -189,24 +190,24 @@ export class PaymentService {
   }
 
   async updatePaymentWebhook(
-    checkoutId: string,
+    referenceId: string,
     status: PaymentStatus,
     method: PaymentMethod,
     payload: any,
   ) {
-    const paymentCheckout = await this.prisma.paymentCheckout.findUnique({
-      where: { checkoutId },
+    const paymentCheckout = await this.prisma.paymentCheckout.findMany({
+      where: { referenceId },
       include: { payment: true },
     });
-    if (!paymentCheckout) {
+    if (!paymentCheckout || paymentCheckout.length === 0) {
       throw new NotFoundException('Payment not found');
     }
-    if (paymentCheckout.payment.status === PaymentStatus.PAID) {
+    if (paymentCheckout[0].payment.status === PaymentStatus.PAID) {
       return; // idempotência
     }
     // marcar como recebido
-    await this.prisma.payment.update({
-      where: { id: paymentCheckout.payment.id },
+    await this.prisma.payment.updateMany({
+      where: { id: { in: paymentCheckout.map((pc) => pc.payment.id) } },
       data: {
         method,
         status,
@@ -218,13 +219,13 @@ export class PaymentService {
     checkoutId: string,
     status: CheckoutStatus,
   ) {
-    const paymentCheckout = await this.prisma.paymentCheckout.findUnique({
+    const paymentCheckout = await this.prisma.paymentCheckout.findMany({
       where: { checkoutId },
     });
-    if (!paymentCheckout) {
+    if (!paymentCheckout || paymentCheckout.length === 0) {
       throw new NotFoundException('Payment checkout not found');
     }
-    return this.prisma.paymentCheckout.update({
+    return this.prisma.paymentCheckout.updateMany({
       where: { checkoutId },
       data: { status },
     });
