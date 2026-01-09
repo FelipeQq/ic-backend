@@ -277,17 +277,14 @@ export class EventService {
           bedroom: event._count.bedrooms,
           team: event._count.Team,
           waitlist: event._count.waitlist,
-          groupRoles: event.groupRoles.map((group: any) => ({
-            name: group.name,
-            capacity: group.capacity,
-            roles: group.roles.map((role: any) => ({
-              id: role.id,
-              description: role.description,
-              registeredCount: role._count.EventOnUsers,
-            })),
-          })),
+          users: event._count.users,
+          capacity: event.groupRoles.reduce(
+            (acc: number, group: any) => acc + (group.capacity || 0),
+            0,
+          ),
         };
         delete data._count;
+        delete data.groupRoles;
         return data;
       });
     }
@@ -333,13 +330,7 @@ export class EventService {
       }));
 
       return {
-        user: {
-          id: item.user.id,
-          fullName: item.user.fullName,
-          email: item.user.email,
-          cpf: item.user.cpf,
-          cellphone: item.user.cellphone,
-        },
+        ...item.user,
         groupsRegistration: Array.from(groupsMap.values()),
         bedrooms,
         teams,
@@ -472,20 +463,11 @@ export class EventService {
           type: true,
           name: true,
           startDate: true,
+          endDate: true,
           isActive: true,
           groupRoles: {
             select: {
-              name: true,
               capacity: true,
-              roles: {
-                select: {
-                  description: true,
-                  id: true,
-                  _count: {
-                    select: { EventOnUsers: true },
-                  },
-                },
-              },
             },
           },
           _count: {
@@ -493,6 +475,7 @@ export class EventService {
               waitlist: true,
               bedrooms: true,
               Team: true,
+              users: true,
             },
           },
         },
@@ -738,74 +721,49 @@ export class EventService {
   }
 
   async findUsers(eventId: string) {
-    const rows = await this.prisma.eventOnUsers.findMany({
-      where: { eventId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            cpf: true,
-            cellphone: true,
+    return this.prisma.eventOnUsers
+      .findMany({
+        where: { eventId },
 
-            bedrooms: {
-              where: {
-                bedrooms: {
-                  eventId,
+        include: {
+          user: {
+            include: {
+              bedrooms: {
+                where: {
+                  bedrooms: {
+                    eventId,
+                  },
+                },
+                include: {
+                  bedrooms: true,
                 },
               },
-              include: {
-                bedrooms: {
-                  select: {
-                    id: true,
-                    name: true,
-                    capacity: true,
+
+              TeamOnUsers: {
+                where: {
+                  team: {
+                    eventId,
                   },
+                },
+                include: {
+                  team: true,
                 },
               },
             },
+          },
 
-            TeamOnUsers: {
-              where: {
-                team: {
-                  eventId,
-                },
-              },
-              include: {
-                team: {
-                  select: {
-                    id: true,
-                    name: true,
-                    capacity: true,
-                  },
+          rolesRegistration: {
+            include: {
+              role: {
+                include: {
+                  group: true,
                 },
               },
             },
           },
         },
-
-        rolesRegistration: {
-          include: {
-            role: {
-              select: {
-                id: true,
-                description: true,
-                price: true,
-                group: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return this.handleformatUsers(rows);
+      })
+      .then((data) => this.handleformatUsers(data));
   }
 
   async findUsersInWaitlist(idEvent: string) {
