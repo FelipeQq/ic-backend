@@ -29,7 +29,10 @@ export class WebhooksService {
     const referenceId = selectedCharge.reference_id;
     const status = this.mapStatus(selectedCharge.status);
     const method = this.mapMethod(selectedCharge.payment_method?.type);
-    const payload = selectedCharge.payment_method;
+    const payload = {
+      payment_method: selectedCharge.payment_method,
+      links: selectedCharge.links,
+    };
 
     await this.paymentService.updatePaymentWebhook(
       referenceId,
@@ -53,11 +56,11 @@ export class WebhooksService {
     switch (method) {
       case 'PIX':
         return PaymentMethod.PIX;
-      case 'credit_card':
+      case 'CREDIT_CARD':
         return PaymentMethod.CREDIT_CARD;
-      case 'debit_card':
+      case 'DEBIT_CARD':
         return PaymentMethod.DEBIT_CARD;
-      case 'cash':
+      case 'CASH':
         return PaymentMethod.CASH;
       case 'BOLETO':
         return PaymentMethod.BOLETO;

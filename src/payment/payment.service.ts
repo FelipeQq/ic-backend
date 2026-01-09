@@ -238,6 +238,9 @@ export class PaymentService {
     if (!payment) {
       throw new NotFoundException('Payment not found');
     }
+    if (payment.status === 'PAID') {
+      throw new BadRequestException('Cannot change status of a PAID payment');
+    }
     return this.prisma.payment.update({
       where: { id: paymentId },
       data: { status },
