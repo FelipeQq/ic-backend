@@ -140,14 +140,16 @@ model Payment {
 }
 
 model PaymentCheckout {
-  id         String         @id @default(uuid())
-  paymentId  String
-  checkoutId String         @unique
-  status     CheckoutStatus
-  amount     Float
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-  payment    Payment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  id          String         @id @default(uuid())
+  paymentId   String
+  checkoutId  String
+  referenceId String
+  status      CheckoutStatus
+  amount      Float
+  link        String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  payment     Payment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   @@map("payment_checkouts")
 }
@@ -236,15 +238,16 @@ enum PaymentMethod {
 }
 
 enum PaymentStatus {
-  PENDING
   PAID
+  IN_ANALYSIS
+  DECLINED
   CANCELED
+  WAITING
   REFUNDED
 }
 
 enum CheckoutStatus {
-  CREATED
+  ACTIVE
   EXPIRED
-  CANCELED
   INACTIVE
 }

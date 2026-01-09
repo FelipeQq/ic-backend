@@ -19,7 +19,7 @@ export class PagbankCustomerDto {
   email: string;
 
   @ApiProperty({ example: '12345678909', required: false })
-  taxId?: string;
+  tax_id?: string;
 
   @ApiProperty({ type: PagbankCustomerPhoneDto, required: false })
   phone?: PagbankCustomerPhoneDto;

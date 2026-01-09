@@ -17,7 +17,6 @@ export class WebhooksController {
   @ApiOperation({ summary: 'Webhook PagBank Payments' })
   @Post('/pagbank/payments')
   async handlePagbankPayments(@Body() payload: any) {
-    const { charges } = payload as { charges: PagbankChargeDto[] };
-    return this.webhooksService.handlePagbankWebhookPayments(charges);
+    return this.webhooksService.handlePagbankWebhookPayments(payload);
   }
 }

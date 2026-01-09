@@ -1,29 +1,38 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsOptional } from 'class-validator';
 
 export class PagbankAddressDto {
   @ApiProperty({ example: 'Rua Exemplo' })
-  street: string;
+  @IsOptional()
+  street?: string;
 
   @ApiProperty({ example: '123' })
-  number: string;
+  @IsOptional()
+  number?: string;
 
   @ApiProperty({ example: 'Apto 10', required: false })
+  @IsOptional()
   complement?: string;
 
   @ApiProperty({ example: 'Centro' })
-  locality: string;
+  @IsOptional()
+  locality?: string;
 
   @ApiProperty({ example: 'São Paulo' })
-  city: string;
+  @IsOptional()
+  city?: string;
 
   @ApiProperty({ example: 'SP' })
-  regionCode: string;
+  @IsOptional()
+  region_code?: string;
 
   @ApiProperty({ example: 'BR' })
-  country: string;
+  @IsOptional()
+  country?: string;
 
   @ApiProperty({ example: '01001000' })
-  postalCode: string;
+  @IsOptional()
+  postal_code?: string;
 }
 
 export class PagbankShippingDto {
@@ -34,7 +43,7 @@ export class PagbankShippingDto {
   amount?: number;
 
   @ApiProperty({ example: true, required: false })
-  addressModifiable?: boolean;
+  address_modifiable?: boolean;
 
   @ApiProperty({ type: PagbankAddressDto, required: false })
   address?: PagbankAddressDto;

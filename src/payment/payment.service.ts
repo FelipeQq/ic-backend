@@ -22,104 +22,191 @@ export class PaymentService {
     private readonly pagbankService: PagbankService,
   ) {}
 
+  private extrairDddENumero(telefone: string) {
+    // Remove tudo que não for número
+    const numeros = telefone.replace(/\D/g, '');
+
+    // Remove código do país (55) se existir
+    const numeroLimpo = numeros.startsWith('55') ? numeros.slice(2) : numeros;
+
+    if (numeroLimpo.length < 10) {
+      throw new Error('Número de telefone inválido');
+    }
+
+    const ddd = numeroLimpo.slice(0, 2);
+    const numero = numeroLimpo.slice(2);
+
+    return {
+      ddd,
+      numero,
+    };
+  }
+
   //Cria o checkout de pagamento
   async createCheckout(dto: CreatePaymentCheckoutDto) {
-    const { userId, eventId, roleRegistrationId } = dto;
+    const transaction = await this.prisma.$transaction(async (tx) => {
+      const { userId, eventId, roleRegistrationId } = dto;
 
-    // Verifica se a inscrição existe
-    const payments = await this.prisma.payment.findMany({
-      where: {
-        userId,
-        eventId,
-        roleRegistrationId: {
-          in: roleRegistrationId,
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      const payments = await tx.payment.findMany({
+        where: {
+          userId,
+          eventId,
+          roleRegistrationId: {
+            in: roleRegistrationId,
+          },
         },
-      },
-    });
-
-    if (payments.length === 0) {
-      throw new NotFoundException('No registrations found for payment');
-    }
-    if (payments.some((p) => p.status === PaymentStatus.PAID)) {
-      throw new BadRequestException('Some registrations are already paid');
-    }
-    const tickets = await this.prisma.rolesRegistration.findMany({
-      where: {
-        id: {
-          in: roleRegistrationId,
+        include: {
+          checkouts: true,
         },
-      },
-    });
-    if (tickets.length !== roleRegistrationId.length) {
-      throw new NotFoundException('Some role registrations not found');
-    }
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-    });
-    //------------------------ data ------------------------------------------
-    const data: CreatePagbankCheckoutDto = {
-      reference_id: randomUUID(),
-      soft_descriptor: 'Igreja de cristo',
-      //webhooks
-      payment_notification_urls: ['https://pagseguro.uol.com.br'],
-      notification_urls: ['https://pagseguro.uol.com.br'],
-      //urls de redirecionamento
-      redirect_url: 'https://pagseguro.uol.com.br',
-      return_url: 'https://pagseguro.uol.com.br',
-      //expiration_date: '2023-08-14T19:09:10-03:00', se não informado será 2 horas
-      customer_modifiable: true,
-      additional_amount: 0,
-      discount_amount: 0,
+      });
 
-      items: tickets.map((ticket) => ({
-        reference_id: ticket.id,
-        description: ticket.description,
-        name: 'Ingresso ' + event.name,
-        quantity: 1,
-        unit_amount: ticket.price, // em centavos
-      })),
-      payment_methods: [
-        { type: 'CREDIT_CARD' },
-        { type: 'DEBIT_CARD' },
-        { type: 'BOLETO' },
-        { type: 'PIX' },
-      ],
-    };
-    return data;
-    //------------------------ fim data ------------------------------------------
+      if (payments.length === 0) {
+        throw new NotFoundException('No registrations found for payment');
+      }
 
-    const result = await this.pagbankService.createCheckout(data);
-    if (result.error) {
-      throw new BadRequestException('Error creating checkout in PagBank');
-    }
+      const unpaidPayments = payments.filter(
+        (p) => p.status !== PaymentStatus.PAID,
+      );
 
-    //persisitr  no banco o checkout
-    await this.prisma.paymentCheckout.create({
-      data: {
-        paymentId: payments[0].id,
-        checkoutId: result.id,
-        status: CheckoutStatus.CREATED,
-        amount: tickets.reduce((sum, ticket) => sum + ticket.price, 0),
-      },
+      if (unpaidPayments.length === 0) {
+        throw new BadRequestException('Some registrations are already paid');
+      }
+
+      //  checkouts ativos
+      const activeCheckouts = unpaidPayments
+        .flatMap((p) => p.checkouts)
+        .filter((c) => c.status === CheckoutStatus.CREATED);
+
+      //  se existir apenas UM checkout ativo e único → reutiliza
+      const uniqueCheckoutIds = new Set(
+        activeCheckouts.map((c) => c.checkoutId),
+      );
+
+      if (uniqueCheckoutIds.size === 1 && activeCheckouts.length > 0) {
+        return {
+          message: 'Checkout already exists',
+          link: activeCheckouts[0].link,
+        };
+      }
+
+      //  se existirem checkouts diferentes → cancelar todos
+      if (activeCheckouts.length > 0) {
+        await tx.paymentCheckout.updateMany({
+          where: {
+            id: { in: activeCheckouts.map((c) => c.id) },
+          },
+          data: { status: CheckoutStatus.CANCELED },
+        });
+      }
+      //Obs: é bom intivar tb a API do PagBank para cancelar o checkout lá, mas eles vão expirar sozinhos em 2h
+
+      // ---------------- tickets ----------------
+      const tickets = await tx.rolesRegistration.findMany({
+        where: {
+          id: { in: roleRegistrationId },
+        },
+      });
+
+      if (tickets.length !== roleRegistrationId.length) {
+        throw new NotFoundException('Some role registrations not found');
+      }
+
+      const event = await tx.event.findUnique({
+        where: { id: eventId },
+      });
+
+      if (!event) {
+        throw new NotFoundException('Event not found');
+      }
+      const { ddd, numero } = this.extrairDddENumero(user.cellphone);
+      // ---------------- PagBank data ----------------
+      const data: CreatePagbankCheckoutDto = {
+        reference_id: randomUUID(),
+        soft_descriptor: 'Igreja de cristo',
+        payment_notification_urls: [
+          `${process.env.URL_BACKEND}/webhooks/pagbank/payments`,
+        ],
+        notification_urls: [
+          `${process.env.URL_BACKEND}/webhooks/pagbank/checkouts`,
+        ],
+        redirect_url: `${process.env.URL_FRONTEND}/events/${eventId}/checkout/success`,
+        return_url: `${process.env.URL_FRONTEND}/events/${eventId}/checkout/return`,
+        customer_modifiable: false,
+        customer: {
+          name: user.fullName,
+          email: user.email,
+          tax_id: user.cpf,
+          phone: { country: '55', area: ddd, number: numero },
+        },
+        additional_amount: 0,
+        discount_amount: 0,
+        items: tickets.map((ticket) => ({
+          reference_id: ticket?.id,
+          description: ticket?.description,
+          name: `Ingresso ${event?.name} - ${ticket?.description}`,
+          quantity: 1,
+          unit_amount: ticket?.price * 100,
+        })),
+        payment_methods: [
+          { type: 'CREDIT_CARD' },
+          { type: 'DEBIT_CARD' },
+          { type: 'BOLETO' },
+          { type: 'PIX' },
+        ],
+      };
+      console.log('Reference ID:', data.reference_id);
+
+      const result = await this.pagbankService.createCheckout(data);
+
+      if (result.error) {
+        throw new BadRequestException('Error creating checkout in PagBank');
+      }
+
+      const linkPay = result.links.find((l) => l.rel === 'PAY')?.href ?? '';
+
+      // persiste o mesmo checkout para TODOS os pagamentos
+      await tx.paymentCheckout.createMany({
+        data: unpaidPayments.map((payment) => ({
+          paymentId: payment.id,
+          checkoutId: result.id,
+          link: linkPay,
+          status: CheckoutStatus.CREATED,
+          amount: tickets.reduce((sum, t) => sum + t.price, 0),
+        })),
+      });
+
+      return { message: 'checkout created', link: linkPay };
     });
-    return result;
+    return transaction;
   }
-  async updatePayment(
+
+  async updatePaymentWebhook(
     checkoutId: string,
     status: PaymentStatus,
     method: PaymentMethod,
     payload: any,
   ) {
-    const payment = await this.prisma.paymentCheckout.findUnique({
+    const paymentCheckout = await this.prisma.paymentCheckout.findUnique({
       where: { checkoutId },
       include: { payment: true },
     });
-    if (!payment) {
+    if (!paymentCheckout) {
       throw new NotFoundException('Payment not found');
+    }
+    if (paymentCheckout.payment.status === PaymentStatus.PAID) {
+      return; // idempotência
     }
     // marcar como recebido
     await this.prisma.payment.update({
-      where: { id: payment.payment.id },
+      where: { id: paymentCheckout.payment.id },
       data: {
         method,
         status,
@@ -127,20 +214,7 @@ export class PaymentService {
       },
     });
   }
-  async updatePaymentStatus(paymentId: string, status: PaymentStatus) {
-    const payment = await this.prisma.payment.findUnique({
-      where: { id: paymentId },
-    });
-    if (!payment) {
-      throw new NotFoundException('Payment not found');
-    }
-    return this.prisma.payment.update({
-      where: { id: paymentId },
-      data: { status },
-    });
-  }
-
-  async updatePaymentCheckoutStatus(
+  async updatePaymentCheckoutWebhook(
     checkoutId: string,
     status: CheckoutStatus,
   ) {
@@ -152,6 +226,19 @@ export class PaymentService {
     }
     return this.prisma.paymentCheckout.update({
       where: { checkoutId },
+      data: { status },
+    });
+  }
+
+  async updatePaymentStatus(paymentId: string, status: PaymentStatus) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+    return this.prisma.payment.update({
+      where: { id: paymentId },
       data: { status },
     });
   }
