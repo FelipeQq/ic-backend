@@ -19,6 +19,14 @@ export class UserDTO {
   profilePhotoUrl?: string;
 
   @ApiProperty({
+    example: 'Gold',
+    description: 'Nome do badge',
+  })
+  @IsString()
+  @IsOptional()
+  badgeName?: string;
+
+  @ApiProperty({
     example: 'uluizfelipe@gmail.com',
     description: 'E-mail',
   })
