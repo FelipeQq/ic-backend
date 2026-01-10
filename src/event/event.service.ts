@@ -86,8 +86,8 @@ export class EventService {
       tx.event.findUnique({ where: { id: eventId } }),
     ]);
 
-    if (!user) throw new NotFoundException('User not found');
-    if (!event) throw new NotFoundException('Event not found');
+    if (!user) throw new NotFoundException('Usuario não encontrado');
+    if (!event) throw new NotFoundException('Evento não encontrado');
 
     // 2️⃣ Busca roles solicitadas (já com grupo)
     const roles = await tx.rolesRegistration.findMany({
@@ -99,13 +99,15 @@ export class EventService {
     });
 
     if (roles.length !== registrationRoleIds.length) {
-      throw new BadRequestException('Invalid role(s)');
+      throw new BadRequestException('Role(s) inválido(s)');
     }
 
     // 3️⃣ Regra: roles devem ser de grupos diferentes
     const groupIds = roles.map((r) => r.groupId);
     if (new Set(groupIds).size !== groupIds.length) {
-      throw new BadRequestException('Roles must belong to different groups');
+      throw new BadRequestException(
+        'As regras devem pertencer a grupos diferentes',
+      );
     }
 
     // 4️⃣ Busca inscrições e waitlist existentes em UMA query lógica
@@ -134,7 +136,7 @@ export class EventService {
 
     if (registrationRoleIds.some((id) => existingRoleIds.has(id))) {
       throw new BadRequestException(
-        'User already registered with some roles in event',
+        'Usuário já registrado em grupos no evento',
       );
     }
 
@@ -145,14 +147,14 @@ export class EventService {
 
     if (roles.some((r) => existingGroupIds.has(r.groupId))) {
       throw new BadRequestException(
-        'User already registered in a role from the same group in this event',
+        'Usuário já registrado em uma regra do mesmo grupo neste evento',
       );
     }
 
     // 7️⃣ Regra: não pode estar na waitlist
     if (existingWaitlist.length > 0) {
       throw new BadRequestException(
-        'User already in waitlist for some roles in event',
+        'Usuário já está na lista de espera para algumas regras de grupo no evento',
       );
     }
 
@@ -243,7 +245,7 @@ export class EventService {
         });
 
         if (!relation) {
-          throw new NotFoundException('User not registered in event');
+          throw new NotFoundException('Usuario não está registrado no evento');
         }
 
         await tx.eventOnUsers.deleteMany({
@@ -259,7 +261,7 @@ export class EventService {
         if (registration.some((r: any) => r.type === 'WAITLIST')) {
           // se ainda ficou na waitlist, deve falar o tx
           throw new BadRequestException(
-            'No available spots in event for this role',
+            'Não há vagas disponíveis no evento para o grupo selecionado',
           );
         }
 
@@ -868,7 +870,7 @@ export class EventService {
         if (registration[0].type === 'WAITLIST') {
           // se ainda ficou na waitlist, deve falar o tx
           throw new BadRequestException(
-            'No available spots in event for this role',
+            'Não há vagas disponíveis no evento para nesse grupo',
           );
         }
 
