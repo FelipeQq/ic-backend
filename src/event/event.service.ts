@@ -26,6 +26,7 @@ export class EventService {
     options?: {
       tx?: Prisma.TransactionClient;
       attempt?: number;
+      movingFromWaitlist?: boolean;
     },
   ) {
     const MAX_RETRIES = 2;
@@ -51,6 +52,12 @@ export class EventService {
             { isolationLevel: 'Serializable' },
           );
 
+      if (
+        options?.movingFromWaitlist === true &&
+        result.results.every((r) => r.type === 'WAITLIST')
+      ) {
+        return result.results;
+      }
       await enviarEmailConfirmacao(
         result.user.fullName,
         result.user.email,
@@ -865,7 +872,7 @@ export class EventService {
           userId,
           eventId,
           [waitlistEntry.roleRegistrationId],
-          { tx },
+          { tx, movingFromWaitlist: true },
         );
         if (registration[0].type === 'WAITLIST') {
           // se ainda ficou na waitlist, deve falar o tx
