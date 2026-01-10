@@ -337,6 +337,27 @@ export class EventService {
       };
     });
   }
+  private handleformatUsersWaitlist(data: any[]) {
+    return data.map((item) => {
+      const rr = item.rolesRegistration;
+      const role = {
+        id: rr.id,
+        description: rr.description,
+        price: rr.price,
+      };
+      const group = rr.group;
+      return {
+        ...item.user,
+        groupsRegistration: [
+          {
+            id: group.id,
+            name: group.name,
+            roles: [role],
+          },
+        ],
+      };
+    });
+  }
 
   async create(data: EventDto) {
     try {
@@ -767,30 +788,36 @@ export class EventService {
   }
 
   async findUsersInWaitlist(idEvent: string) {
-    return this.prisma.waitlist.findMany({
-      where: {
-        eventId: idEvent,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            cpf: true,
-            cellphone: true,
+    return this.prisma.waitlist
+      .findMany({
+        where: {
+          eventId: idEvent,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              cpf: true,
+              cellphone: true,
+              badgeName: true,
+              birthday: true,
+              city: true,
+              neighborhood: true,
+            },
+          },
+          rolesRegistration: {
+            select: {
+              id: true,
+              description: true,
+              price: true,
+              group: { select: { id: true, name: true } },
+            },
           },
         },
-        rolesRegistration: {
-          select: {
-            id: true,
-            description: true,
-            price: true,
-            group: { select: { id: true, name: true } },
-          },
-        },
-      },
-    });
+      })
+      .then((data) => this.handleformatUsersWaitlist(data));
   }
   async removeUserFromWaitlist(
     idUser: string,
