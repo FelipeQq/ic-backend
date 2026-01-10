@@ -4,12 +4,15 @@ import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { initializeFirebase } from './firebase.config';
+import { json, urlencoded } from 'express';
 
 dotenv.config();
 initializeFirebase();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
   const port = process.env.PORT;
   app.enableCors({
     origin: true,
@@ -34,7 +37,6 @@ async function bootstrap() {
       transform: true,
     }),
   );
-
   await app.listen(port);
 }
 bootstrap();
