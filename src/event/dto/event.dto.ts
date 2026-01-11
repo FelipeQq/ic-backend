@@ -132,7 +132,6 @@ export class EventDto {
         );
         return groupRole;
       });
-      console.log(transformedWithTypes);
       return transformedWithTypes;
     }
     return [];
