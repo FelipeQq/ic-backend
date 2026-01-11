@@ -248,24 +248,42 @@ export class PaymentService {
   }
 
   async findPaymentsByEvent(eventId: string) {
-    return this.prisma.payment.findMany({
-      where: {
-        eventId,
-      },
-      include: {
-        checkouts: true,
-        eventUserRole: {
-          include: {
-            role: true,
-            eventOnUsers: {
-              include: {
-                user: true,
+    return this.prisma.eventOnUsers
+      .findMany({
+        where: {
+          eventId,
+        },
+        include: {
+          rolesRegistration: {
+            select: {
+              payment: true,
+              role: {
+                select: { groupId: true, group: { select: { name: true } } },
               },
             },
           },
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              cpf: true,
+            },
+          },
         },
-      },
-    });
+      })
+      .then((eventOnUsers) => {
+        return eventOnUsers.flatMap((eou) =>
+          eou.rolesRegistration
+            .filter((rr) => rr.payment) // evita null
+            .map((rr) => ({
+              ...eou.user,
+              ...rr.payment, // cada pagamento vira um item separado
+              groupId: rr.role.groupId,
+              groupName: rr.role.group?.name,
+            })),
+        );
+      });
   }
 
   async findPaymentsByUser(userId: string, eventId?: string) {
