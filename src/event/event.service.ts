@@ -645,19 +645,6 @@ export class EventService {
   }
 
   async update(id: string, updateEvent: EventDto) {
-    const { logoUrl, coverUrl } = await this.saveLogosFirebase(
-      id,
-      updateEvent.logoFile,
-      updateEvent.coverFile,
-    );
-
-    if (logoUrl || coverUrl) {
-      updateEvent.data = {
-        ...updateEvent.data,
-        ...(logoUrl ? { logoUrl } : {}),
-        ...(coverUrl ? { coverUrl } : {}),
-      };
-    }
     const event = await this.prisma.event.findUnique({
       where: { id },
       include: {
@@ -672,10 +659,28 @@ export class EventService {
         },
       },
     });
-
     if (!event) {
       throw new NotFoundException('Event does not exist');
     }
+    ///salva as logos no firebase///////////////
+    let { logoUrl, coverUrl } = await this.saveLogosFirebase(
+      id,
+      updateEvent.logoFile,
+      updateEvent.coverFile,
+    );
+
+    if (!logoUrl) {
+      logoUrl = event.data['logoUrl'];
+    }
+    if (!coverUrl) {
+      coverUrl = event.data['coverUrl'];
+    }
+    updateEvent.data = {
+      ...updateEvent.data,
+      logoUrl,
+      coverUrl,
+    } as unknown as Prisma.JsonObject;
+    ////////////////////////////////////////////
 
     const startDate = new Date(updateEvent.startDate);
     const endDate = new Date(updateEvent.endDate);
