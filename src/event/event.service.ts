@@ -367,6 +367,7 @@ export class EventService {
       };
     });
   }
+  //s
   private handlerReturnEvent(event: Event) {
     return {
       ...event,
