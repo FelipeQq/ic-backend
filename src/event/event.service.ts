@@ -587,6 +587,7 @@ export class EventService {
           startDate: true,
           endDate: true,
           isActive: true,
+          data: true,
           groupRoles: {
             select: {
               capacity: true,
