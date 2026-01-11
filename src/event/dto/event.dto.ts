@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { EventType } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
@@ -68,6 +68,12 @@ export class EventDto {
     example: true,
     description: 'Status do evento (ativo/inativo)',
   })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.toLowerCase() === 'true';
+    }
+    return Boolean(value);
+  })
   @IsBoolean()
   isActive: boolean;
 
@@ -106,6 +112,11 @@ export class EventDto {
       },
     ],
   })
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value.map((groupRole) => Object.assign(new GroupRoleDto(), groupRole))
+      : [],
+  )
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
@@ -116,6 +127,9 @@ export class EventDto {
     example: { local: 'Auditório Principal', address: 'Rua XYZ, 123' },
     description: 'Dados adicionais do evento',
   })
+  @Transform(({ value }) =>
+    typeof value === 'string' ? JSON.parse(value) : value,
+  )
   @IsObject()
   @IsOptional()
   data: Object;
@@ -125,6 +139,24 @@ export class EventDto {
   })
   @IsString()
   type: EventType;
+
+  @ApiProperty({
+    description: 'File da logo do evento',
+    type: 'string',
+    format: 'binary',
+    required: false,
+  })
+  @IsOptional()
+  logoFile?: Express.Multer.File;
+
+  @ApiProperty({
+    description: 'File da capa do evento',
+    type: 'string',
+    format: 'binary',
+    required: false,
+  })
+  @IsOptional()
+  coverFile?: Express.Multer.File;
 }
 export class roleEventDto {
   @ApiProperty({

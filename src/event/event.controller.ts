@@ -8,11 +8,19 @@ import {
   Put,
   Query,
   UseGuards,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
 import { EventService } from './event.service';
 import { EventDto, roleEventDto } from './dto/event.dto';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/decorators/auth.guard';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('events')
 @ApiBearerAuth()
@@ -21,9 +29,27 @@ export class EventController {
   constructor(private readonly eventService: EventService) {}
 
   @Post()
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'logoFile', maxCount: 1 },
+      { name: 'coverFile', maxCount: 1 },
+    ]),
+  )
+  @ApiConsumes('multipart/form-data')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Create event' })
-  create(@Body() EventDto: EventDto) {
+  create(
+    @UploadedFiles()
+    files: {
+      logoFile?: Express.Multer.File[];
+      coverFile?: Express.Multer.File[];
+    },
+    @Body() EventDto: EventDto,
+  ) {
+    const logoFile = files.logoFile?.[0];
+    const coverFile = files.coverFile?.[0];
+    EventDto.logoFile = logoFile;
+    EventDto.coverFile = coverFile;
     return this.eventService.create(EventDto);
   }
 
@@ -43,6 +69,7 @@ export class EventController {
 
   @ApiOperation({ summary: 'Event by id' })
   @UseGuards(JwtAuthGuard)
+  @ApiConsumes('multipart/form-data')
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.eventService.findOne(id);
@@ -51,7 +78,26 @@ export class EventController {
   @ApiOperation({ summary: 'Edit event' })
   @UseGuards(JwtAuthGuard)
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateEventDto: EventDto) {
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'logoFile', maxCount: 1 },
+      { name: 'coverFile', maxCount: 1 },
+    ]),
+  )
+  @ApiConsumes('multipart/form-data')
+  update(
+    @UploadedFiles()
+    files: {
+      logoFile?: Express.Multer.File[];
+      coverFile?: Express.Multer.File[];
+    },
+    @Param('id') id: string,
+    @Body() updateEventDto: EventDto,
+  ) {
+    const logoFile = files.logoFile?.[0];
+    const coverFile = files.coverFile?.[0];
+    updateEventDto.logoFile = logoFile;
+    updateEventDto.coverFile = coverFile;
     return this.eventService.update(id, updateEventDto);
   }
 

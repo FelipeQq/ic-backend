@@ -14,6 +14,8 @@ import {
 } from '../prisma';
 import { EventDto } from './dto/event.dto';
 import { enviarEmailConfirmacao } from 'src/nodeMailer/sendEmail';
+import * as admin from 'firebase-admin';
+
 type EventWithGroupRole = Prisma.EventGetPayload<{
   include: {
     groupRoles: {
@@ -395,35 +397,98 @@ export class EventService {
     };
   }
 
+  private async saveLogosFirebase(
+    eventId: string,
+    logoFile: Express.Multer.File,
+    coverFile: Express.Multer.File,
+  ): Promise<{ coverUrl: string | null; logoUrl: string | null }> {
+    const bucket = admin.storage().bucket();
+    let logoUrl = null;
+    let coverUrl = null;
+
+    if (logoFile) {
+      const logoPath = `events/${eventId}/logo/logo.svg`;
+      const bucketName = admin.storage().bucket().name;
+
+      const logoBucket = bucket.file(logoPath);
+      await logoBucket.save(logoFile.buffer, {
+        contentType: logoFile.mimetype,
+      });
+
+      const logoPublicPath = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(
+        logoPath,
+      )}?alt=media`;
+      logoUrl = logoPublicPath;
+    }
+    if (coverFile) {
+      const coverPath = `events/${eventId}/cover/cover.${
+        coverFile.mimetype.split('/')[1]
+      }`;
+      const bucketName = admin.storage().bucket().name;
+      const coverBucket = bucket.file(coverPath);
+      await coverBucket.save(coverFile.buffer, {
+        contentType: coverFile.mimetype,
+      });
+
+      const coverPublicPath = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(
+        coverPath,
+      )}?alt=media`;
+      coverUrl = coverPublicPath;
+    }
+    return { coverUrl, logoUrl };
+  }
+
   async create(data: EventDto) {
     try {
       data.endDate = new Date(data.endDate);
       data.startDate = new Date(data.startDate);
 
-      const event = await this.prisma.event.create({
-        data: {
-          type: data.type,
-          endDate: data.endDate,
-          startDate: data.startDate,
-          name: data.name,
-          data: data.data as Prisma.JsonObject,
-          groupRoles: {
-            create: data.groupRoles?.map((gr) => ({
-              name: gr.name,
-              capacity: gr.capacity,
-              roles: {
-                create: gr.roles.map((r) => ({
-                  price: r.price,
-                  description: r.description,
-                })),
-              },
-            })),
+      const result = await this.prisma.$transaction(async (tx) => {
+        const event = await tx.event.create({
+          data: {
+            type: data.type,
+            endDate: data.endDate,
+            startDate: data.startDate,
+            name: data.name,
+            data: data.data as Prisma.JsonObject,
+            groupRoles: {
+              create: data.groupRoles?.map((gr) => ({
+                name: gr.name,
+                capacity: gr.capacity,
+                roles: {
+                  create: gr.roles.map((r) => ({
+                    price: r.price,
+                    description: r.description,
+                  })),
+                },
+              })),
+            },
+            groupLink: data.groupLink,
+            isActive: true,
           },
-          groupLink: data.groupLink,
-          isActive: true,
-        },
+        });
+
+        const { coverUrl, logoUrl } = await this.saveLogosFirebase(
+          event.id,
+          data.logoFile,
+          data.coverFile,
+        );
+
+        const updateEventFoto = await tx.event.update({
+          where: { id: event.id },
+          data: {
+            data: {
+              ...data.data,
+              coverUrl,
+              logoUrl,
+            } as unknown as Prisma.JsonObject,
+          },
+        });
+
+        return updateEventFoto;
       });
-      return event;
+
+      return result;
     } catch {
       throw new InternalServerErrorException();
     }
@@ -580,6 +645,19 @@ export class EventService {
   }
 
   async update(id: string, updateEvent: EventDto) {
+    const { logoUrl, coverUrl } = await this.saveLogosFirebase(
+      id,
+      updateEvent.logoFile,
+      updateEvent.coverFile,
+    );
+
+    if (logoUrl || coverUrl) {
+      updateEvent.data = {
+        ...updateEvent.data,
+        ...(logoUrl ? { logoUrl } : {}),
+        ...(coverUrl ? { coverUrl } : {}),
+      };
+    }
     const event = await this.prisma.event.findUnique({
       where: { id },
       include: {
