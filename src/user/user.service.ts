@@ -233,18 +233,37 @@ export class UserService {
     };
   }
   async findUserGroups(userId: string) {
-    return this.prisma.groupRoles.findMany({
-      where: {
-        roles: {
-          some: {
-            EventOnUsers: {
-              some: {
-                userId: userId,
+    const [presentGroups, waitlistGroups] = await Promise.all([
+      // Grupos onde o usuário está confirmado (inscrito)
+      this.prisma.groupRoles.findMany({
+        where: {
+          roles: {
+            some: {
+              EventOnUsers: {
+                some: { userId },
               },
             },
           },
         },
-      },
-    });
+      }),
+
+      // Grupos onde o usuário está na lista de espera
+      this.prisma.groupRoles.findMany({
+        where: {
+          roles: {
+            some: {
+              Waitlist: {
+                some: { userId },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      present: presentGroups,
+      waitlist: waitlistGroups,
+    };
   }
 }
