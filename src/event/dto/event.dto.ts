@@ -112,11 +112,31 @@ export class EventDto {
       },
     ],
   })
-  @Transform(({ value }) =>
-    Array.isArray(value)
-      ? value.map((groupRole) => Object.assign(new GroupRoleDto(), groupRole))
-      : [],
-  )
+  @Transform(({ value }) => {
+    // Se for string, faz JSON.parse primeiro
+    if (typeof value === 'string') {
+      try {
+        value = JSON.parse(value);
+      } catch {
+        return [];
+      }
+    }
+    // Agora trata como array e converte para instâncias de GroupRoleDto
+    if (Array.isArray(value)) {
+      const transformed = value.map((groupRole) =>
+        Object.assign(new GroupRoleDto(), groupRole),
+      );
+      const transformedWithTypes = transformed.map((groupRole) => {
+        groupRole.roles = groupRole.roles.map((role) =>
+          Object.assign(new RoleDto(), role),
+        );
+        return groupRole;
+      });
+      console.log(transformedWithTypes);
+      return transformedWithTypes;
+    }
+    return [];
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
