@@ -14,7 +14,17 @@ import {
 } from '../prisma';
 import { EventDto } from './dto/event.dto';
 import { enviarEmailConfirmacao } from 'src/nodeMailer/sendEmail';
-
+type EventWithGroupRole = Prisma.EventGetPayload<{
+  include: {
+    groupRoles: {
+      include: {
+        roles: {
+          include: { _count: { select: { EventOnUsers: true } } };
+        };
+      };
+    };
+  };
+}>;
 @Injectable()
 export class EventService {
   constructor(private prisma: PrismaService) {}
@@ -368,7 +378,7 @@ export class EventService {
     });
   }
   //s
-  private handlerReturnEvent(event: Event) {
+  private handlerReturnEvent(event: EventWithGroupRole) {
     return {
       ...event,
       groupRoles: event.groupRoles.map((group) => ({
