@@ -367,6 +367,22 @@ export class EventService {
       };
     });
   }
+  private handlerReturnEvent(event: Event) {
+    return {
+      ...event,
+      groupRoles: event.groupRoles.map((group) => ({
+        ...group,
+        roles: group.roles.map((role) => {
+          const { _count, ...rest } = role;
+
+          return {
+            ...rest,
+            registered: _count?.EventOnUsers ?? 0,
+          };
+        }),
+      })),
+    };
+  }
 
   async create(data: EventDto) {
     try {
@@ -516,21 +532,22 @@ export class EventService {
   }
 
   async findOne(id: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id },
-      include: {
-        users: {
-          select: {
-            user: true,
+    const event = await this.prisma.event
+      .findUnique({
+        where: { id },
+        include: {
+          groupRoles: {
+            include: {
+              roles: {
+                include: {
+                  _count: { select: { EventOnUsers: true } },
+                },
+              },
+            },
           },
         },
-        groupRoles: {
-          include: {
-            roles: true,
-          },
-        },
-      },
-    });
+      })
+      .then((event) => this.handlerReturnEvent(event));
     if (!event) {
       throw new NotFoundException('Event does not exist');
     }
