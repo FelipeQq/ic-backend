@@ -76,6 +76,13 @@ export class UserController {
     return this.userService.findOne(id);
   }
 
+  @ApiOperation({ summary: 'Get Groups by user ' })
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/groups')
+  async findUserGroups(@Param('id') id: string) {
+    return this.userService.findUserGroups(id);
+  }
+
   @ApiOperation({ summary: 'Edit user' })
   @UseGuards(JwtAuthGuard)
   @Put(':id')

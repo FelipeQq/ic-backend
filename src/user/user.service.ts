@@ -232,4 +232,21 @@ export class UserService {
       usersWithEvents,
     };
   }
+  async findUserGroups(userId: string) {
+    const events = await this.prisma.event.findMany({
+      where: {
+        users: {
+          some: {
+            userId,
+          },
+        },
+      },
+      include: {
+        groupRoles: true,
+      },
+    });
+
+    // junta todos os grupos de todos os eventos
+    return events.flatMap((event) => event.groupRoles);
+  }
 }
