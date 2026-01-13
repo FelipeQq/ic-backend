@@ -76,18 +76,11 @@ export class EventService {
       ) {
         return result.results;
       }
-      await this.sendEmailConfirmation({
+      this.sendEmailConfirmation({
         user: result.user,
         event: result.event,
+        tickets: result.results,
       });
-      // await enviarEmailConfirmacao(
-      //   result.user.fullName,
-      //   result.user.email,
-      //   false,
-      //   result.event.name,
-      //   result.event.startDate,
-      //   result.event.endDate,
-      // );
 
       return result.results;
     } catch (error: any) {
@@ -101,58 +94,7 @@ export class EventService {
       throw error;
     }
   }
-  private async sendEmailConfirmation({
-    user,
-    event,
-  }: {
-    user: User;
-    event: Event;
-  }) {
-    const emailData = {
-      eventTitle: event.name,
-      eventDescription: event.data['description'] || '',
-      userName: user.fullName,
-    };
-    const html = this.emailService.loadTemplate(
-      'registration-confirmation',
-      emailData,
-    );
-    // const cover = null;
-    // const coverBuffer = Buffer.from(cover, 'base64');
-    // const logo = null;
-    // const logoBuffer = Buffer.from(logo, 'base64');
-    await this.emailService.sendMail({
-      to: user.email,
-      subject: `Confirmação de inscrição no evento ${event.name}`,
-      html,
-      attachments: [
-        // {
-        //   filename: 'cover.png',
-        //   content: coverBuffer,
-        //   cid: 'cover',
-        //   // contentType: coverBuffer.mime,
-        //   // contentDisposition: 'inline' as const,
-        // },
-        // {
-        //   filename: 'logo.png',
-        //   content: logoBuffer,
-        //   cid: 'logo',
-        // },
-        {
-          filename: 'logo.png',
-          path: path.join(
-            process.cwd(),
-            'src',
-            'mail',
-            'templates',
-            'assets',
-            'logo.png',
-          ),
-          cid: 'logo',
-        },
-      ],
-    });
-  }
+
   private async _registerUserInEventTx(
     tx: PrismaService | Prisma.TransactionClient,
     userId: string,
@@ -297,6 +239,142 @@ export class EventService {
 
     return { user, event, results };
   }
+
+  private async renderTickets(tickets: any[] = []): Promise<string> {
+    if (!tickets.length) return '';
+
+    const roleIds = tickets.map((t) => t.roleId).filter(Boolean);
+    console.log('roleIds', roleIds);
+
+    const rolesRegistrations = await this.prisma.rolesRegistration.findMany({
+      where: { id: { in: roleIds } },
+      include: {
+        group: true,
+        EventOnUsers: {
+          select: {
+            eventOnUsers: { select: { event: { select: { data: true } } } },
+          },
+        },
+      },
+    });
+    console.log('rolesRegistrations', rolesRegistrations);
+
+    const statusMap: Record<string, string> = {
+      REGISTERED: 'INSCRITO',
+      WAITLIST: 'LISTA DE ESPERA',
+    };
+
+    const statusColors: Record<string, string> = {
+      REGISTERED: '#16a34a',
+      WAITLIST: '#ca8a04',
+    };
+
+    const items = tickets
+      .map((ticket) => {
+        const role = rolesRegistrations.find((r) => r.id === ticket.roleId);
+
+        const roleName = role?.description ?? 'N/A';
+        const groupName = role?.group?.name ?? 'N/A';
+        const local =
+          role?.EventOnUsers[0]?.eventOnUsers?.event?.data?.['localName'] ?? '';
+
+        return `
+        <li class="ticket-item">
+          <div style="width:100%">
+            <div class="ticket-name">
+              Ingresso: ${groupName}
+            </div>
+            <div class="ticket-meta">
+              Variação: ${roleName}
+            </div>
+          </div>
+
+          <div style="text-align: right; width: 180px;position: absolute;right: 0">
+            <div style="font-weight: 700; color: ${
+              statusColors[ticket.type] ?? '#0f1724'
+            }">
+              ${statusMap[ticket.type] ?? ticket.type}
+            </div>
+
+            <div class="ticket-meta">
+              Lugar: ${local}
+            </div>
+          </div>
+        </li>
+      `;
+      })
+      .join('');
+
+    return `
+    <ul class="ticket-list" style="margin-bottom: 16px">
+      ${items}
+    </ul>
+  `;
+  }
+
+  private async sendEmailConfirmation({
+    user,
+    event,
+    tickets = [],
+  }: {
+    user: User;
+    event: Event;
+    tickets?: any[];
+  }) {
+    const data = event.data as any;
+
+    const LOCAL = [
+      data?.localName,
+      [data?.city, data?.state].filter(Boolean).join(', '),
+      data?.neighborhood,
+      data?.address,
+    ]
+      .filter(Boolean)
+      .join(' - ')
+      .concat(data?.zipCode ? ` - CEP: ${data.zipCode}` : '')
+      .concat(data?.number ? ` - ${data.number}` : '');
+
+    const emailData = {
+      eventTitle: event.name,
+      eventDescription: data?.description ?? '',
+      userName: user.fullName,
+      eventDate: `${new Date(
+        event.startDate,
+      ).toLocaleDateString()} a ${new Date(
+        event.endDate,
+      ).toLocaleDateString()}`,
+      INSERT_TICKETS: await this.renderTickets(tickets),
+      IMG_CAPA_URL: data?.coverUrl ?? '',
+      IMG_LOGO_URL: data?.logoUrl?.replace('svg', 'png') ?? '',
+      LOCAL,
+    };
+
+    const html = this.emailService.loadTemplate(
+      'registration-confirmation',
+      emailData,
+    );
+
+    await this.emailService.sendMail({
+      to: user.email,
+      subject: `Confirmação de inscrição no evento ${event.name}`,
+      html,
+      attachments: [
+        {
+          filename: 'logo.png',
+          path: path.join(
+            process.cwd(),
+            'src',
+            'mail',
+            'templates',
+            'assets',
+            'logo.png',
+          ),
+          cid: 'logo',
+        },
+      ],
+    });
+  }
+
   async removeRelation(idUser: string, idEvent: string) {
     const relationExists = await this.prisma.eventOnUsers.findFirst({
       where: { userId: idUser, eventId: idEvent },
@@ -556,83 +634,100 @@ export class EventService {
   }
 
   async findInsightsEvents() {
-    // const events = await this.prisma.event.findMany({
-    //   select: {
-    //     isActive: true,
-    //     id: true,
-    //     name: true,
-    //     startDate: true,
-    //     capacity: true,
-    //     capacityWorker: true,
-    //     users: {
-    //       select: {
-    //         createdAt: true, // precisa estar no select para calcular
-    //         worker: true,
-    //       },
-    //     },
-    //   }, // caso use TS, pois não existe "createdAt" no include, é no select
-    // });
+    const events = await this.prisma.event.findMany({
+      select: {
+        id: true,
+        isActive: true,
+        startDate: true,
+        users: {
+          select: {
+            createdAt: true,
+            user: {
+              select: {
+                worker: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-    // //calcular a media de ventos por trimestre
-    // const trimestres = [0, 0, 0, 0]; // índice 0 = 1º tri, 1 = 2º tri...
+    if (!events.length) {
+      return {
+        totalEvents: 0,
+        totalEventsActive: 0,
+        timeToFillHours: 0,
+        timeToFillWorkerHours: 0,
+        eventsInCurrentQuarter: 0,
+      };
+    }
 
-    // events.forEach((event) => {
-    //   const eventDate = new Date(event.startDate);
-    //   const quarter = Math.floor(eventDate.getMonth() / 3); // 0–3
-    //   trimestres[quarter]++;
-    // });
+    // 📊 Eventos por trimestre
+    const trimestres = [0, 0, 0, 0];
 
-    // // Soma total de eventos e divide por 4 trimestres
-    // const totalEventos = trimestres.reduce((acc, val) => acc + val, 0);
-    // const eventsInCurrentQuarter = totalEventos / 4;
+    events.forEach((event) => {
+      const month = new Date(event.startDate).getMonth();
+      const quarter = Math.floor(month / 3);
+      trimestres[quarter]++;
+    });
 
-    // // Calcula o tempo médio para lotar por evento individual
-    // const totalEventsActive = events.filter((e) => e.isActive).length;
-    // const totalEvents = events.length;
+    const totalEventos = trimestres.reduce((acc, val) => acc + val, 0);
+    const eventsInCurrentQuarter = Number((totalEventos / 4).toFixed(2));
 
-    // const totalTimeToFill = events.reduce(
-    //   (acc, event) => {
-    //     const getTimeToFill = (
-    //       users: { createdAt: Date }[],
-    //       capacity: number,
-    //     ) => {
-    //       if (users.length !== capacity) return null;
+    // 📌 Totais
+    const totalEvents = events.length;
+    const totalEventsActive = events.filter((e) => e.isActive).length;
 
-    //       let min = Infinity;
-    //       let max = -Infinity;
+    // ⏱ Calcula tempo entre primeiro e último inscrito
+    function getTimeToFill(users: { createdAt: Date }[]): number | null {
+      if (users.length < 2) return null;
 
-    //       for (const u of users) {
-    //         const t = u.createdAt.getTime();
-    //         if (t < min) min = t;
-    //         if (t > max) max = t;
-    //       }
+      let min = Infinity;
+      let max = -Infinity;
 
-    //       return (max - min) / (1000 * 60 * 60); // horas
-    //     };
+      for (const u of users) {
+        const t = new Date(u.createdAt).getTime();
+        if (t < min) min = t;
+        if (t > max) max = t;
+      }
 
-    //     const timeToFill = getTimeToFill(
-    //       event.users.filter((u) => !u.worker),
-    //       event.capacity,
-    //     );
+      return (max - min) / (1000 * 60 * 60);
+    }
 
-    //     const timeToFillWorker = getTimeToFill(
-    //       event.users.filter((u) => u.worker),
-    //       event.capacityWorker,
-    //     );
+    let totalTimeUser = 0;
+    let totalTimeWorker = 0;
+    let countUser = 0;
+    let countWorker = 0;
 
-    //     return [acc[0] + (timeToFill ?? 0), acc[1] + (timeToFillWorker ?? 0)];
-    //   },
-    //   [0, 0],
-    // );
+    events.forEach((event) => {
+      const commonUsers = event.users.filter((u) => !u.user.worker);
+      const workers = event.users.filter((u) => u.user.worker);
 
-    // return {
-    //   totalEvents,
-    //   totalEventsActive,
-    //   timeToFillHours: (totalTimeToFill[0] / totalEvents).toFixed(2) || 0,
-    //   timeToFillWorkerHours: (totalTimeToFill[1] / totalEvents).toFixed(2) || 0,
-    //   eventsInCurrentQuarter,
-    // };
-    return {};
+      const timeUser = getTimeToFill(commonUsers);
+      const timeWorker = getTimeToFill(workers);
+
+      if (timeUser !== null) {
+        totalTimeUser += timeUser;
+        countUser++;
+      }
+
+      if (timeWorker !== null) {
+        totalTimeWorker += timeWorker;
+        countWorker++;
+      }
+    });
+
+    return {
+      totalEvents,
+      totalEventsActive,
+      timeToFillHours: countUser
+        ? Number((totalTimeUser / countUser).toFixed(2))
+        : 0,
+      timeToFillWorkerHours: countWorker
+        ? Number((totalTimeWorker / countWorker).toFixed(2))
+        : 0,
+      eventsInCurrentQuarter,
+    };
   }
 
   async findAll(filters?: Partial<EventDto>) {

@@ -70,6 +70,9 @@
         margin: 0 0 16px;
         line-height: 1.5;
       }
+      .im {
+        width: 100% !important;
+      }
       .muted {
         color: #6b7280;
         font-size: 13px;
@@ -88,6 +91,8 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        margin-left: 0px !important;
+        position: relative;
       }
       .ticket-name {
         font-weight: 600;
@@ -122,6 +127,7 @@
         text-decoration: none;
         color: #0288d1;
       }
+
       @media only screen and (max-width: 480px) {
         .p-24 {
           padding: 16px;
@@ -133,21 +139,6 @@
     </style>
   </head>
   <body>
-    <img
-      class="logo"
-      src="cid:logo"
-      alt="Logo"
-      width="88"
-      style="height: 40px; width: auto; margin-right: 12px"
-    />
-
-    <!-- <div class="headertext">
-      <h3 class="subtitle">
-        {title}
-      </h3>
-    </div>
-    <br /> -->
-
     <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
       <tr>
         <td align="center" style="padding: 24px 12px">
@@ -171,64 +162,21 @@
                     <td style="background-color: #0f1724">
                       <!-- Substitua EVENT_IMAGE_URL pelo link da imagem do evento -->
                       <img
-                        src="EVENT_IMAGE_URL"
+                        src="{IMG_CAPA_URL}"
                         alt="Imagem do evento"
-                        width="680"
+                        width="380"
                         style="
                           width: 100%;
                           height: auto;
                           display: block;
                           object-fit: cover;
-                          max-height: 260px;
+                          max-height: 150px;
                         "
                       />
                     </td>
                   </tr>
-                  <tr>
-                    <td
-                      style="
-                        padding: 14px 18px;
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                      "
-                    >
-                      <!-- Logo à esquerda -->
-                      <div style="display: flex; align-items: center">
-                        <!-- Substitua LOGO_URL pelo link da logo -->
-                        <img
-                          src="LOGO_URL"
-                          alt="Logo"
-                          width="88"
-                          style="height: 40px; width: auto; margin-right: 12px"
-                        />
-                        <div
-                          style="
-                            font-family: -apple-system, BlinkMacSystemFont,
-                              'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-                            color: #fff;
-                            font-weight: 700;
-                          "
-                        >
-                          ORGANIZAÇÃO DO EVENTO
-                        </div>
-                      </div>
-                      <!-- Data/resumo curto à direita -->
-                      <div
-                        style="
-                          text-align: right;
-                          color: #d1d5db;
-                          font-size: 13px;
-                        "
-                      >
-                        <div>DATA: 01 Jan - 03 Jan</div>
-                        <div>LOCAL: Cidade, Estado</div>
-                      </div>
-                    </td>
-                  </tr>
                 </table>
 
-                <!-- Conteúdo principal -->
                 <table
                   width="100%"
                   role="presentation"
@@ -237,11 +185,44 @@
                 >
                   <tr>
                     <td class="p-24">
-                      <div class="text-center">
-                        <h1 class="h1">{eventTitle}</h1>
-                        <p class="muted" style="margin: 6px 0 18px">
-                          Confirmação de inscrição
-                        </p>
+                      <div
+                        class="text-center"
+                        style="margin-top: -30px; display: flex; width: 100%"
+                      >
+                        <div style="width: 100px; height: 100px">
+                          <img
+                            src="https://img.freepik.com/vetores-premium/conceito-de-logotipo-de-ilustracao-de-gradiente-de-passaro-colorido_1253202-1468.jpg?semt=ais_hybrid&w=740&q=80"
+                            alt="Logo"
+                            style="
+                              width: auto !important;
+                              height: 60px !important;
+                              width: auto;
+                            "
+                          />
+                        </div>
+                        <div
+                          class="text-center"
+                          style="width: 100%; margin-top: 40px"
+                        >
+                          <h1 class="h1">{eventTitle}</h1>
+                          <p
+                            class="muted"
+                            style="margin: 6px 0 18px; font-size: 14px"
+                          >
+                            Confirmação de inscrição
+                          </p>
+                        </div>
+                        <div style="width: 100px; height: 100px">
+                          <img
+                            src="cid:logo"
+                            alt="Logo"
+                            style="
+                              width: auto !important;
+                              height: 60px !important;
+                              width: auto;
+                            "
+                          />
+                        </div>
                       </div>
 
                       <p class="lead">Olá <strong>{userName}</strong>,</p>
@@ -252,8 +233,7 @@
                         <strong>{eventTitle}</strong> foi realizada com sucesso!
                       </p>
                       <p class="muted" style="margin: 0 0 8px">
-                        <strong>Local do evento:</strong> Nome do local,
-                        Endereço completo, Bairro — Cidade / Estado
+                        <strong>Local do evento:</strong> {LOCAL}
                       </p>
                       <p class="muted" style="margin: 0 0 8px">
                         <strong>Data:</strong> {eventDate}
@@ -276,45 +256,7 @@
                       </h3>
 
                       <!-- Lista de ingressos (cada ingresso pode representar um dia) -->
-                      <ul class="ticket-list" style="margin-bottom: 16px">
-                        <!-- Repita este bloco para cada ingresso -->
-                        <li class="ticket-item">
-                          <div>
-                            <div class="ticket-name">
-                              Ingresso: Dia 1 — Abertura
-                            </div>
-                            <div class="ticket-meta">
-                              Data: 01/01/2026 &middot; Lugar: Auditório
-                              Principal
-                            </div>
-                          </div>
-                          <div style="text-align: right">
-                            <div style="font-weight: 700; color: #0f1724">
-                              CONFIRMADO
-                            </div>
-                            <div class="ticket-meta">Código: ABC123</div>
-                          </div>
-                        </li>
-
-                        <li class="ticket-item">
-                          <div>
-                            <div class="ticket-name">
-                              Ingresso: Dia 2 — Oficinas
-                            </div>
-                            <div class="ticket-meta">
-                              Data: 02/01/2026 &middot; Sala: Oficina A
-                            </div>
-                          </div>
-                          <div style="text-align: right">
-                            <div style="font-weight: 700; color: #0f1724">
-                              CONFIRMADO
-                            </div>
-                            <div class="ticket-meta">Código: DEF456</div>
-                          </div>
-                        </li>
-
-                        <!-- Fim do bloco repetível -->
-                      </ul>
+                      {INSERT_TICKETS}
 
                       <p class="lead">
                         Fique atento para futuras comunicações contendo
@@ -332,13 +274,6 @@
                         {eventTitle} da Igreja de Cristo!
                       </p>
 
-                      <div style="text-align: center; margin-top: 18px">
-                        <!-- Substitua o href abaixo por link real -->
-                        <a class="btn" href="EVENT_MANAGE_URL"
-                          >Ver minha inscrição</a
-                        >
-                      </div>
-
                       <hr
                         style="
                           border: none;
@@ -348,7 +283,7 @@
                       />
 
                       <p class="muted" style="margin: 0 0 8px">
-                        Pr. Kleber Junior de Sousa Lider Espiritual
+                        Pr. Kleber Junior de Sousa - Líder Espiritual
                       </p>
                       <p class="muted" style="margin: 0 0 8px">
                         <strong>Contato:</strong> admin@iccidadeverde.com
