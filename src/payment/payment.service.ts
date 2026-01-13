@@ -263,6 +263,7 @@ export class PaymentService {
       data: {
         status: payload.status,
         method: payload.method,
+        receivedFrom: PaymentReceived.EXTERNAL,
         payload: {
           ...(typeof payment.payload === 'object' && payment.payload !== null
             ? payment.payload
