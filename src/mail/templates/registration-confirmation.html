@@ -21,7 +21,8 @@
         font-family: 'Plus Jakarta Sans', sans-serif;
         margin: 0;
         padding: 40px;
-        background-color: white;
+        background-color: #ffffff !important;
+        color: #000000 !important;
         margin: 0;
         padding: 0;
         background-color: #f4f6f8;
@@ -105,7 +106,7 @@
       .btn {
         display: inline-block;
         background: #2563eb;
-        color: #fff;
+        color: #000000;
         text-decoration: none;
         padding: 10px 16px;
         border-radius: 6px;
@@ -145,7 +146,7 @@
       }
       .logoD {
         display: block;
-        max-width: 120px;
+        max-width: 90px;
         max-height: 60px;
         width: auto;
         height: auto;
@@ -154,7 +155,7 @@
       }
       .logoE {
         display: block;
-        max-width: 120px;
+        max-width: 90px;
         max-height: 60px;
         width: auto;
         height: auto;
@@ -216,38 +217,58 @@
                   role="presentation"
                   cellpadding="0"
                   cellspacing="0"
+                  style="background-color: #ffffff"
                 >
                   <tr>
                     <td class="p-24">
-                      <div
-                        class="text-center"
-                        style="
-                          margin-top: -30px;
-                          width: 100%;
-                          text-align: center;
-                        "
+                      <table
+                        width="100%"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="margin-top: -30px"
                       >
-                        <!-- Logo esquerda -->
-                        <div class="boxLogo">
-                          <img src="{IMG_LOGO_URL}" alt="Logo" class="logoE" />
-                        </div>
+                        <tr>
+                          <!-- Logo esquerda -->
+                          <td align="left" width="90" style="padding: 0 6px">
+                            <img
+                              src="{IMG_LOGO_URL}"
+                              alt="Logo"
+                              class="logoE"
+                            />
+                          </td>
 
-                        <!-- Centro -->
-                        <div class="boxCenter">
-                          <h1 class="h1" style="margin: 0">{eventTitle}</h1>
-                          <p
-                            class="muted"
-                            style="margin: 6px 0 18px; font-size: 14px"
-                          >
-                            Confirmação de inscrição
-                          </p>
-                        </div>
+                          <!-- Centro -->
+                          <td align="center" style="padding: 0 10px">
+                            <h1
+                              style="
+                                margin: 0;
+                                font-size: 20px;
+                                font-weight: 700;
+                                color: #0f1724;
+                              "
+                            >
+                              {eventTitle}
+                            </h1>
+                            <p
+                              style="
+                                margin: 6px 0 18px;
+                                font-size: 14px;
+                                color: #6b7280;
+                              "
+                            >
+                              Confirmação de inscrição
+                            </p>
+                          </td>
 
-                        <!-- Logo direita -->
-                        <div class="boxLogo">
-                          <img src="cid:logo" alt="Logo" class="logoD" />
-                        </div>
-                      </div>
+                          <!-- Logo direita -->
+                          <td align="right" width="90" style="padding: 0 6px">
+                            <img src="cid:logo" alt="Logo2" class="logoD" />
+                          </td>
+                        </tr>
+                      </table>
+                      <hr />
+                      <br />
 
                       <p class="lead">Olá <strong>{userName}</strong>,</p>
 
