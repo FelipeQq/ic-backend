@@ -1,9 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { PaymentStatus } from '@prisma/client';
-import { IsEnum } from 'class-validator';
+import { PaymentStatus, PaymentMethod } from '@prisma/client';
+import { IsEnum, IsOptional } from 'class-validator';
 
 export class UpdatePaymentStatusDto {
   @ApiProperty({ enum: PaymentStatus })
   @IsEnum(PaymentStatus)
-  status: PaymentStatus;
+  @IsOptional()
+  status?: PaymentStatus;
+
+  @ApiProperty({ enum: PaymentMethod })
+  @IsEnum(PaymentMethod)
+  @IsOptional()
+  method?: PaymentMethod;
+
+  @ApiProperty({ type: 'string', format: 'binary', required: false })
+  @IsOptional()
+  receiptFile?: Express.Multer.File;
+
+  @ApiProperty({ type: 'string', required: false })
+  @IsOptional()
+  paymentId?: string;
 }

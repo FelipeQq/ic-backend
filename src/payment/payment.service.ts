@@ -15,6 +15,8 @@ import { CreatePaymentCheckoutDto } from './dto/create-payment-checkout.dto';
 import { CreatePagbankCheckoutDto } from 'src/gateways/pagbank/dto/create-checkout.dto';
 import { PagbankService } from 'src/gateways/pagbank/pagbank.service';
 import { randomUUID } from 'crypto';
+import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
+import { uploadImageFirebase } from 'src/utils/uploadImgFirebase';
 @Injectable()
 export class PaymentService {
   constructor(
@@ -231,19 +233,43 @@ export class PaymentService {
     });
   }
 
-  async updatePaymentStatus(paymentId: string, status: PaymentStatus) {
+  async updatePaymentStatus(payload: UpdatePaymentStatusDto) {
     const payment = await this.prisma.payment.findUnique({
-      where: { id: paymentId },
+      where: { id: payload.paymentId },
     });
     if (!payment) {
       throw new NotFoundException('Payment not found');
     }
-    if (payment.status === 'PAID') {
-      throw new BadRequestException('Cannot change status of a PAID payment');
+    if (
+      payment.status === PaymentStatus.PAID &&
+      payload.status !== PaymentStatus.REFUNDED
+    ) {
+      throw new BadRequestException(
+        'Não é possível alterar um pagamento já pago, exceto para reembolso',
+      );
     }
+    let url: string | undefined;
+    if (payload.receiptFile) {
+      url = (
+        await uploadImageFirebase(
+          payload.receiptFile,
+          `payments/${payload.paymentId}/receipt-${Date.now()}`,
+        )
+      ).url;
+    }
+
     return this.prisma.payment.update({
-      where: { id: paymentId },
-      data: { status },
+      where: { id: payload.paymentId },
+      data: {
+        status: payload.status,
+        method: payload.method,
+        payload: {
+          ...(typeof payment.payload === 'object' && payment.payload !== null
+            ? payment.payload
+            : {}),
+          comprovanteFileUrl: url,
+        },
+      },
     });
   }
 

@@ -32,6 +32,7 @@ export class WebhooksService {
     const payload = {
       payment_method: selectedCharge.payment_method,
       links: selectedCharge.links,
+      codeTransaction: selectedCharge.id,
     };
 
     await this.paymentService.updatePaymentWebhook(

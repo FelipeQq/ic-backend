@@ -6,18 +6,26 @@ import {
   Patch,
   Post,
   Put,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PaymentStatus } from '@prisma/client';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/decorators/auth.guard';
 import {
   CreatePaymentCheckoutDto,
   payloadCreatePaymentCheckoutDto,
 } from './dto/create-payment-checkout.dto';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('payments')
 @ApiBearerAuth()
@@ -67,13 +75,26 @@ export class PaymentController {
   // ===============================
   // Atualizar status do pagamento
   // ===============================
-  @ApiOperation({ summary: 'Update payment status' })
+
+  @ApiOperation({ summary: 'Update payment' })
   @Put('payments/:paymentId')
-  updateStatus(
+  @UseInterceptors(
+    FileFieldsInterceptor([{ name: 'receiptFile', maxCount: 1 }]),
+  )
+  @ApiConsumes('multipart/form-data')
+  @UseGuards(JwtAuthGuard)
+  update(
     @Param('paymentId') paymentId: string,
+    @UploadedFiles()
+    files: {
+      receiptFile?: Express.Multer.File[];
+    },
     @Body() body: UpdatePaymentStatusDto,
   ) {
-    return this.paymentService.updatePaymentStatus(paymentId, body.status);
+    const receiptFile = files.receiptFile?.[0];
+    body.receiptFile = receiptFile;
+    body.paymentId = paymentId;
+    return this.paymentService.updatePaymentStatus(body);
   }
 
   // ===============================
