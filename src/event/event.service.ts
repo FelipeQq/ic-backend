@@ -244,7 +244,6 @@ export class EventService {
     if (!tickets.length) return '';
 
     const roleIds = tickets.map((t) => t.roleId).filter(Boolean);
-    console.log('roleIds', roleIds);
 
     const rolesRegistrations = await this.prisma.rolesRegistration.findMany({
       where: { id: { in: roleIds } },
@@ -257,7 +256,6 @@ export class EventService {
         },
       },
     });
-    console.log('rolesRegistrations', rolesRegistrations);
 
     const statusMap: Record<string, string> = {
       REGISTERED: 'INSCRITO',
