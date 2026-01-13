@@ -11,10 +11,13 @@ import {
   PaymentStatus,
   Prisma,
   PrismaService,
+  User,
 } from '../prisma';
 import { EventDto } from './dto/event.dto';
 import { enviarEmailConfirmacao } from 'src/nodeMailer/sendEmail';
 import * as admin from 'firebase-admin';
+import { MailService } from 'src/mail/mail.service';
+import * as path from 'path';
 
 type EventWithGroupRole = Prisma.EventGetPayload<{
   include: {
@@ -29,7 +32,10 @@ type EventWithGroupRole = Prisma.EventGetPayload<{
 }>;
 @Injectable()
 export class EventService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private emailService: MailService,
+  ) {}
 
   async registerUserInEvent(
     userId: string,
@@ -70,14 +76,18 @@ export class EventService {
       ) {
         return result.results;
       }
-      await enviarEmailConfirmacao(
-        result.user.fullName,
-        result.user.email,
-        false,
-        result.event.name,
-        result.event.startDate,
-        result.event.endDate,
-      );
+      await this.sendEmailConfirmation({
+        user: result.user,
+        event: result.event,
+      });
+      // await enviarEmailConfirmacao(
+      //   result.user.fullName,
+      //   result.user.email,
+      //   false,
+      //   result.event.name,
+      //   result.event.startDate,
+      //   result.event.endDate,
+      // );
 
       return result.results;
     } catch (error: any) {
@@ -91,7 +101,58 @@ export class EventService {
       throw error;
     }
   }
-
+  private async sendEmailConfirmation({
+    user,
+    event,
+  }: {
+    user: User;
+    event: Event;
+  }) {
+    const emailData = {
+      eventTitle: event.name,
+      eventDescription: event.data['description'] || '',
+      userName: user.fullName,
+    };
+    const html = this.emailService.loadTemplate(
+      'registration-confirmation',
+      emailData,
+    );
+    // const cover = null;
+    // const coverBuffer = Buffer.from(cover, 'base64');
+    // const logo = null;
+    // const logoBuffer = Buffer.from(logo, 'base64');
+    await this.emailService.sendMail({
+      to: user.email,
+      subject: `Confirmação de inscrição no evento ${event.name}`,
+      html,
+      attachments: [
+        // {
+        //   filename: 'cover.png',
+        //   content: coverBuffer,
+        //   cid: 'cover',
+        //   // contentType: coverBuffer.mime,
+        //   // contentDisposition: 'inline' as const,
+        // },
+        // {
+        //   filename: 'logo.png',
+        //   content: logoBuffer,
+        //   cid: 'logo',
+        // },
+        {
+          filename: 'logo.png',
+          path: path.join(
+            process.cwd(),
+            'src',
+            'mail',
+            'templates',
+            'assets',
+            'logo.png',
+          ),
+          cid: 'logo',
+        },
+      ],
+    });
+  }
   private async _registerUserInEventTx(
     tx: PrismaService | Prisma.TransactionClient,
     userId: string,

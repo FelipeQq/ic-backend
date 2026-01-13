@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap"
+      rel="stylesheet"
+    />
+    <title>Recovery</title>
+
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        gap: 40px;
+        text-align: 'left';
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        margin: 0;
+        padding: 40px;
+        background-color: white;
+      }
+
+      .headertext {
+        display: block;
+      }
+
+      .title {
+        font-weight: 400;
+        font-size: 24px;
+      }
+      .subtitle {
+        margin-top: 5px;
+        font-weight: 300;
+        font-size: 14px;
+      }
+
+      .textContent {
+        font-size: 14px;
+        max-width: 600px;
+        line-height: 143%;
+        letter-spacing: 0.17px;
+        font-weight: 400;
+        padding: 0px;
+        line-height: 30px;
+      }
+
+      .logo {
+        width: 170px;
+        height: auto;
+        margin-bottom: 20px;
+      }
+
+      .button {
+        margin-top: 20px;
+        margin-bottom: 20px;
+        background-color: #3b48e3;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 500;
+        border: none;
+        color: white !important;
+        max-width: 600px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      p,
+      h1,
+      h3 {
+        padding: 0;
+        margin: 0;
+      }
+      a {
+        text-decoration: none;
+        color: #0288d1;
+      }
+    </style>
+  </head>
+  <body>
+    <img class="logo" src="cid:logo" alt="Logo" />
+
+    <div class="headertext">
+      <!-- <h1 class="title">Seja bem vindo!</h1> -->
+      <h3 class="subtitle">
+        <!-- Olá,<br /> -->
+        {title}
+      </h3>
+    </div>
+    <br />
+  </body>
+</html>

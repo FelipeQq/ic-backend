@@ -38,12 +38,10 @@ async function renovarToken(refreshToken: string): Promise<string> {
       'https://oauth2.googleapis.com/token',
       requestBody,
     );
+    console.log('Token de acesso renovado com sucesso.');
     return response.data.access_token;
   } catch (error) {
-    console.error(
-      'Erro ao renovar o token de acesso:',
-      error.response.data.error,
-    );
+    this.logger.error('Erro ao renovar o token de acesso:', error);
     throw error;
   }
 }

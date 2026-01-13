@@ -108,7 +108,7 @@ export class PaymentService {
           data: { status: CheckoutStatus.INACTIVE },
         });
       }
-      //Obs: é bom intivar tb a API do PagBank para cancelar o checkout lá, mas eles vão expirar sozinhos em 2h
+      //Obs: é bom inativar tb a API do PagBank para cancelar o checkout lá, mas eles vão expirar sozinhos em 2h
 
       // ---------------- tickets ----------------
       const tickets = await tx.rolesRegistration.findMany({
