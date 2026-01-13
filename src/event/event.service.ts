@@ -343,7 +343,7 @@ export class EventService {
       ).toLocaleDateString()}`,
       INSERT_TICKETS: await this.renderTickets(tickets),
       IMG_CAPA_URL: data?.coverUrl ?? '',
-      IMG_LOGO_URL: data?.logoUrl?.replace('svg', 'png') ?? '',
+      IMG_LOGO_URL: data?.logoUrl ?? '',
       LOCAL,
     };
 
