@@ -127,6 +127,40 @@
         text-decoration: none;
         color: #0288d1;
       }
+      .boxLogo {
+        display: inline-block;
+        width: 120px;
+        height: 100px;
+        vertical-align: top;
+        text-align: right;
+      }
+      .boxCenter {
+        display: inline-block;
+        width: calc(100% - 250px);
+        vertical-align: top;
+        margin-top: 0px;
+        text-align: center;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .logoD {
+        display: block;
+        max-width: 120px;
+        max-height: 60px;
+        width: auto;
+        height: auto;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .logoE {
+        display: block;
+        max-width: 120px;
+        max-height: 60px;
+        width: auto;
+        height: auto;
+        margin-left: auto;
+        margin-right: auto;
+      }
 
       @media only screen and (max-width: 480px) {
         .p-24 {
@@ -194,38 +228,12 @@
                         "
                       >
                         <!-- Logo esquerda -->
-                        <div
-                          style="
-                            display: inline-block;
-                            width: 100px;
-                            height: 100px;
-                            vertical-align: top;
-                            text-align: left;
-                          "
-                        >
-                          <img
-                            src="{IMG_LOGO_URL}"
-                            alt="Logo"
-                            style="
-                              display: block;
-                              max-width: 100px;
-                              max-height: 60px;
-                              width: auto;
-                              height: auto;
-                            "
-                          />
+                        <div class="boxLogo">
+                          <img src="{IMG_LOGO_URL}" alt="Logo" class="logoE" />
                         </div>
 
                         <!-- Centro -->
-                        <div
-                          class="text-center"
-                          style="
-                            display: inline-block;
-                            width: calc(100% - 220px);
-                            vertical-align: top;
-                            margin-top: 20px;
-                          "
-                        >
+                        <div class="boxCenter">
                           <h1 class="h1" style="margin: 0">{eventTitle}</h1>
                           <p
                             class="muted"
@@ -236,26 +244,8 @@
                         </div>
 
                         <!-- Logo direita -->
-                        <div
-                          style="
-                            display: inline-block;
-                            width: 100px;
-                            height: 100px;
-                            vertical-align: top;
-                            text-align: right;
-                          "
-                        >
-                          <img
-                            src="cid:logo"
-                            alt="Logo"
-                            style="
-                              display: block;
-                              max-width: 100px;
-                              max-height: 60px;
-                              width: auto;
-                              height: auto;
-                            "
-                          />
+                        <div class="boxLogo">
+                          <img src="cid:logo" alt="Logo" class="logoD" />
                         </div>
                       </div>
 

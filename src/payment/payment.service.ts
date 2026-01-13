@@ -236,6 +236,15 @@ export class PaymentService {
   async updatePaymentStatus(payload: UpdatePaymentStatusDto) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: payload.paymentId },
+      include: {
+        eventUserRole: {
+          include: {
+            eventOnUsers: {
+              include: { event: { select: { id: true, name: true } } },
+            },
+          },
+        },
+      },
     });
     if (!payment) {
       throw new NotFoundException('Payment not found');
@@ -248,12 +257,15 @@ export class PaymentService {
         'Não é possível alterar um pagamento já pago, exceto para reembolso',
       );
     }
+    let eventId = payment.eventUserRole?.eventOnUsers?.event?.id;
     let url: string | undefined;
     if (payload.receiptFile) {
       url = (
         await uploadImageFirebase(
           payload.receiptFile,
-          `payments/${payload.paymentId}/receipt-${Date.now()}`,
+          `events/${eventId}/payments/receipt-${
+            payload.paymentId
+          }-${Date.now()}`,
         )
       ).url;
     }

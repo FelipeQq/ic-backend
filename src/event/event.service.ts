@@ -4,6 +4,8 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import * as sharp from 'sharp';
+
 import {
   Event,
   PaymentMethod,
@@ -14,10 +16,10 @@ import {
   User,
 } from '../prisma';
 import { EventDto } from './dto/event.dto';
-import { enviarEmailConfirmacao } from 'src/nodeMailer/sendEmail';
 import * as admin from 'firebase-admin';
 import { MailService } from 'src/mail/mail.service';
 import * as path from 'path';
+import { uploadImageFirebase } from 'src/utils/uploadImgFirebase';
 
 type EventWithGroupRole = Prisma.EventGetPayload<{
   include: {
@@ -343,7 +345,7 @@ export class EventService {
       ).toLocaleDateString()}`,
       INSERT_TICKETS: await this.renderTickets(tickets),
       IMG_CAPA_URL: data?.coverUrl ?? '',
-      IMG_LOGO_URL: data?.logoUrl ?? '',
+      IMG_LOGO_URL: data?.logoUrlInverted ?? '',
       LOCAL,
     };
 
@@ -516,7 +518,6 @@ export class EventService {
       };
     });
   }
-  //s
   private handlerReturnEvent(event: EventWithGroupRole) {
     return {
       ...event,
@@ -534,46 +535,46 @@ export class EventService {
     };
   }
 
-  private async saveLogosFirebase(
-    eventId: string,
-    logoFile: Express.Multer.File,
-    coverFile: Express.Multer.File,
-  ): Promise<{ coverUrl: string | null; logoUrl: string | null }> {
-    const bucket = admin.storage().bucket();
-    let logoUrl = null;
-    let coverUrl = null;
+  // private async saveLogosFirebase(
+  //   eventId: string,
+  //   logoFile: Express.Multer.File,
+  //   coverFile: Express.Multer.File,
+  // ): Promise<{ coverUrl: string | null; logoUrl: string | null }> {
+  //   const bucket = admin.storage().bucket();
+  //   let logoUrl = null;
+  //   let coverUrl = null;
 
-    if (logoFile) {
-      const logoPath = `events/${eventId}/logo/logo.svg`;
-      const bucketName = admin.storage().bucket().name;
+  //   if (logoFile) {
+  //     const logoPath = `events/${eventId}/logo/logo.svg`;
+  //     const bucketName = admin.storage().bucket().name;
 
-      const logoBucket = bucket.file(logoPath);
-      await logoBucket.save(logoFile.buffer, {
-        contentType: logoFile.mimetype,
-      });
+  //     const logoBucket = bucket.file(logoPath);
+  //     await logoBucket.save(logoFile.buffer, {
+  //       contentType: logoFile.mimetype,
+  //     });
 
-      const logoPublicPath = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(
-        logoPath,
-      )}?alt=media`;
-      logoUrl = logoPublicPath;
-    }
-    if (coverFile) {
-      const coverPath = `events/${eventId}/cover/cover.${
-        coverFile.mimetype.split('/')[1]
-      }`;
-      const bucketName = admin.storage().bucket().name;
-      const coverBucket = bucket.file(coverPath);
-      await coverBucket.save(coverFile.buffer, {
-        contentType: coverFile.mimetype,
-      });
+  //     const logoPublicPath = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(
+  //       logoPath,
+  //     )}?alt=media`;
+  //     logoUrl = logoPublicPath;
+  //   }
+  //   if (coverFile) {
+  //     const coverPath = `events/${eventId}/cover/cover.${
+  //       coverFile.mimetype.split('/')[1]
+  //     }`;
+  //     const bucketName = admin.storage().bucket().name;
+  //     const coverBucket = bucket.file(coverPath);
+  //     await coverBucket.save(coverFile.buffer, {
+  //       contentType: coverFile.mimetype,
+  //     });
 
-      const coverPublicPath = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(
-        coverPath,
-      )}?alt=media`;
-      coverUrl = coverPublicPath;
-    }
-    return { coverUrl, logoUrl };
-  }
+  //     const coverPublicPath = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(
+  //       coverPath,
+  //     )}?alt=media`;
+  //     coverUrl = coverPublicPath;
+  //   }
+  //   return { coverUrl, logoUrl };
+  // }
 
   async create(data: EventDto) {
     try {
@@ -605,11 +606,22 @@ export class EventService {
           },
         });
 
-        const { coverUrl, logoUrl } = await this.saveLogosFirebase(
-          event.id,
-          data.logoFile,
-          data.coverFile,
-        );
+        const coverUrl = (
+          await uploadImageFirebase(
+            data.coverFile,
+            `events/${event.id}/cover/cover.${
+              data.coverFile.mimetype.split('/')[1]
+            }`,
+          )
+        ).url;
+        const logoUrl = (
+          await uploadImageFirebase(
+            data.logoFile,
+            `events/${event.id}/logo/logo.${
+              data.logoFile.mimetype.split('/')[1]
+            }`,
+          )
+        ).url;
 
         const updateEventFoto = await tx.event.update({
           where: { id: event.id },
@@ -818,12 +830,57 @@ export class EventService {
       throw new NotFoundException('Event does not exist');
     }
     ///salva as logos no firebase///////////////
-    let { logoUrl, coverUrl } = await this.saveLogosFirebase(
-      id,
-      updateEvent.logoFile,
-      updateEvent.coverFile,
-    );
 
+    let coverUrl = null;
+    let logoUrl = null;
+    let logoUrlInverted = null;
+
+    if (updateEvent.coverFile) {
+      coverUrl = (
+        await uploadImageFirebase(
+          updateEvent.coverFile,
+          `events/${event.id}/cover/cover.${
+            updateEvent.coverFile.mimetype.split('/')[1]
+          }`,
+        )
+      ).url;
+    }
+
+    if (updateEvent.logoFile) {
+      logoUrl = (
+        await uploadImageFirebase(
+          updateEvent.logoFile,
+          `events/${event.id}/logo/logo.${
+            updateEvent.logoFile.mimetype.split('/')[1]
+          }`,
+        )
+      ).url;
+      // logo com cores invertidas
+
+      const blackBuffer = await sharp(updateEvent.logoFile.buffer)
+        .negate({ alpha: false })
+        .greyscale() // Remove toda a cor e saturação (efeito "zerar brilho")
+        .tint({ r: 0, g: 0, b: 0 }) // Aplica um tom de preto absoluto
+        .png()
+        .toBuffer();
+
+      const blackFile: Express.Multer.File = {
+        ...updateEvent.logoFile,
+        buffer: blackBuffer,
+        mimetype: 'image/png',
+      };
+
+      logoUrlInverted = (
+        await uploadImageFirebase(
+          blackFile,
+          `events/${event.id}/logo/logoInvert.png`,
+        )
+      ).url;
+    }
+
+    if (!logoUrlInverted) {
+      logoUrlInverted = event.data['logoUrlInverted'];
+    }
     if (!logoUrl) {
       logoUrl = event.data['logoUrl'];
     }
@@ -834,6 +891,7 @@ export class EventService {
       ...updateEvent.data,
       logoUrl,
       coverUrl,
+      logoUrlInverted,
     } as unknown as Prisma.JsonObject;
     ////////////////////////////////////////////
 
