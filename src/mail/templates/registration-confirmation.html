@@ -187,23 +187,46 @@
                     <td class="p-24">
                       <div
                         class="text-center"
-                        style="margin-top: -30px; display: flex; width: 100%"
+                        style="
+                          margin-top: -30px;
+                          width: 100%;
+                          text-align: center;
+                        "
                       >
-                        <div style="width: 100px; height: 100px">
+                        <!-- Logo esquerda -->
+                        <div
+                          style="
+                            display: inline-block;
+                            width: 100px;
+                            height: 100px;
+                            vertical-align: top;
+                            text-align: left;
+                          "
+                        >
                           <img
                             src="{IMG_LOGO_URL}"
+                            alt="Logo"
                             style="
-                              width: auto !important;
-                              height: 60px !important;
+                              display: block;
+                              max-width: 100px;
+                              max-height: 60px;
                               width: auto;
+                              height: auto;
                             "
                           />
                         </div>
+
+                        <!-- Centro -->
                         <div
                           class="text-center"
-                          style="width: 100%; margin-top: 40px"
+                          style="
+                            display: inline-block;
+                            width: calc(100% - 220px);
+                            vertical-align: top;
+                            margin-top: 20px;
+                          "
                         >
-                          <h1 class="h1">{eventTitle}</h1>
+                          <h1 class="h1" style="margin: 0">{eventTitle}</h1>
                           <p
                             class="muted"
                             style="margin: 6px 0 18px; font-size: 14px"
@@ -211,14 +234,26 @@
                             Confirmação de inscrição
                           </p>
                         </div>
-                        <div style="width: 100px; height: 100px">
+
+                        <!-- Logo direita -->
+                        <div
+                          style="
+                            display: inline-block;
+                            width: 100px;
+                            height: 100px;
+                            vertical-align: top;
+                            text-align: right;
+                          "
+                        >
                           <img
                             src="cid:logo"
                             alt="Logo"
                             style="
-                              width: auto !important;
-                              height: 60px !important;
+                              display: block;
+                              max-width: 100px;
+                              max-height: 60px;
                               width: auto;
+                              height: auto;
                             "
                           />
                         </div>
