@@ -65,11 +65,17 @@ export class PaymentController {
   // ===============================
   @ApiOperation({ summary: 'Get payments by user in event' })
   @Get('events/:idEvent/users/:idUser/payments')
-  findByUser(
+  findByUserEvent(
     @Param('idEvent') eventId: string,
     @Param('idUser') userId: string,
   ) {
-    return this.paymentService.findPaymentsByUser(userId);
+    return this.paymentService.findPaymentsByUser(userId, eventId);
+  }
+
+  @ApiOperation({ summary: 'Get payments by user' })
+  @Get('users/:idUser/payments')
+  findByUser(@Param('idUser') userId: string) {
+    return this.paymentService.findUserEventsWithRoles(userId);
   }
 
   // ===============================
