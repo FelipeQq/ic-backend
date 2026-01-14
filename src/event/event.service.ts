@@ -581,71 +581,73 @@ export class EventService {
       data.endDate = new Date(data.endDate);
       data.startDate = new Date(data.startDate);
 
-      const result = await this.prisma.$transaction(async (tx) => {
-        const event = await tx.event.create({
-          data: {
-            type: data.type,
-            endDate: data.endDate,
-            startDate: data.startDate,
-            name: data.name,
-            data: data.data as Prisma.JsonObject,
-            groupRoles: {
-              create: data.groupRoles?.map((gr) => ({
-                name: gr.name,
-                capacity: gr.capacity,
-                roles: {
-                  create: gr.roles.map((r) => ({
-                    price: r.price,
-                    description: r.description,
-                  })),
-                },
-              })),
-            },
-            groupLink: data.groupLink,
-            isActive: true,
+      // 1. Cria o evento primeiro (sem upload)
+      const event = await this.prisma.event.create({
+        data: {
+          type: data.type,
+          endDate: data.endDate,
+          startDate: data.startDate,
+          name: data.name,
+          data: data.data as Prisma.JsonObject,
+          groupRoles: {
+            create: data.groupRoles?.map((gr) => ({
+              name: gr.name,
+              capacity: gr.capacity,
+              roles: {
+                create: gr.roles.map((r) => ({
+                  price: r.price,
+                  description: r.description,
+                })),
+              },
+            })),
           },
-        });
-        let coverUrl = null;
-        let logoUrl = null;
-
-        if (data.coverFile) {
-          coverUrl = (
-            await uploadImageFirebase(
-              data.coverFile,
-              `events/${event.id}/cover/cover.${
-                data?.coverFile?.mimetype?.split('/')[1]
-              }`,
-            )
-          ).url;
-        }
-        if (data.logoFile) {
-          logoUrl = (
-            await uploadImageFirebase(
-              data.logoFile,
-              `events/${event.id}/logo/logo.${
-                data?.logoFile?.mimetype?.split('/')[1]
-              }`,
-            )
-          ).url;
-        }
-
-        const updateEventFoto = await tx.event.update({
-          where: { id: event.id },
-          data: {
-            data: {
-              ...data.data,
-              coverUrl,
-              logoUrl,
-            } as unknown as Prisma.JsonObject,
-          },
-        });
-
-        return updateEventFoto;
+          groupLink: data.groupLink,
+          isActive: true,
+        },
       });
 
-      return result;
+      // 2. Uploads fora da transaction
+
+      const [coverResult, logoResult] = await Promise.all([
+        data.coverFile
+          ? uploadImageFirebase(
+              data.coverFile,
+              `events/${event.id}/cover/cover.${
+                data.coverFile.mimetype.split('/')[1]
+              }`,
+            )
+          : null,
+
+        data.logoFile
+          ? uploadImageFirebase(
+              data.logoFile,
+              `events/${event.id}/logo/logo.${
+                data.logoFile.mimetype.split('/')[1]
+              }`,
+            )
+          : null,
+      ]);
+
+      const coverUrl = coverResult?.url ?? null;
+      const logoUrl = logoResult?.url ?? null;
+
+      const jsonData: Prisma.JsonObject = {
+        ...((data.data as Prisma.JsonObject) ?? {}),
+        coverUrl,
+        logoUrl,
+      };
+
+      // 3. Atualiza o evento com URLs
+      const updatedEvent = await this.prisma.event.update({
+        where: { id: event.id },
+        data: {
+          data: jsonData,
+        },
+      });
+
+      return updatedEvent;
     } catch (error) {
-      console.log(error);
+      console.error(error);
       throw new InternalServerErrorException();
     }
   }
@@ -833,41 +835,46 @@ export class EventService {
         },
       },
     });
+
     if (!event) {
       throw new NotFoundException('Event does not exist');
     }
-    ///salva as logos no firebase///////////////
 
-    let coverUrl = null;
-    let logoUrl = null;
-    let logoUrlInverted = null;
+    // ================= UPLOADS (FORA DA TRANSACTION) =================
 
-    if (updateEvent.coverFile) {
-      coverUrl = (
-        await uploadImageFirebase(
-          updateEvent.coverFile,
-          `events/${event.id}/cover/cover.${
-            updateEvent.coverFile.mimetype.split('/')[1]
-          }`,
-        )
-      ).url;
-    }
+    let coverUrl = event.data?.['coverUrl'] ?? null;
+    let logoUrl = event.data?.['logoUrl'] ?? null;
+    let logoUrlInverted = event.data?.['logoUrlInverted'] ?? null;
 
+    const [coverResult, logoResult] = await Promise.all([
+      updateEvent.coverFile
+        ? uploadImageFirebase(
+            updateEvent.coverFile,
+            `events/${event.id}/cover/cover.${
+              updateEvent.coverFile.mimetype.split('/')[1]
+            }`,
+          )
+        : null,
+
+      updateEvent.logoFile
+        ? uploadImageFirebase(
+            updateEvent.logoFile,
+            `events/${event.id}/logo/logo.${
+              updateEvent.logoFile.mimetype.split('/')[1]
+            }`,
+          )
+        : null,
+    ]);
+
+    if (coverResult) coverUrl = coverResult.url;
+    if (logoResult) logoUrl = logoResult.url;
+
+    // Logo invertida apenas se veio nova logo
     if (updateEvent.logoFile) {
-      logoUrl = (
-        await uploadImageFirebase(
-          updateEvent.logoFile,
-          `events/${event.id}/logo/logo.${
-            updateEvent.logoFile.mimetype.split('/')[1]
-          }`,
-        )
-      ).url;
-      // logo com cores invertidas
-
       const blackBuffer = await sharp(updateEvent.logoFile.buffer)
         .negate({ alpha: false })
-        .greyscale() // Remove toda a cor e saturação (efeito "zerar brilho")
-        .tint({ r: 0, g: 0, b: 0 }) // Aplica um tom de preto absoluto
+        .greyscale()
+        .tint({ r: 0, g: 0, b: 0 })
         .png()
         .toBuffer();
 
@@ -884,39 +891,34 @@ export class EventService {
         )
       ).url;
     }
+    const safeData = structuredClone(updateEvent.data ?? {}) as Record<
+      string,
+      any
+    >;
 
-    if (!logoUrlInverted) {
-      logoUrlInverted = event.data?.['logoUrlInverted'] || null;
-    }
-    if (!logoUrl) {
-      logoUrl = event.data?.['logoUrl'] || null;
-    }
-    if (!coverUrl) {
-      coverUrl = event.data?.['coverUrl'] || null;
-    }
-    updateEvent.data = {
-      ...updateEvent.data,
-      logoUrl,
+    const jsonData: Prisma.JsonObject = {
+      ...safeData,
       coverUrl,
+      logoUrl,
       logoUrlInverted,
-    } as unknown as Prisma.JsonObject;
-    ////////////////////////////////////////////
+    } as Prisma.JsonObject;
 
     const startDate = new Date(updateEvent.startDate);
     const endDate = new Date(updateEvent.endDate);
 
+    // ================= TRANSACTION SOMENTE PARA BANCO =================
+
     await this.prisma.$transaction(async (tx) => {
-      /**Atualiza dados básicos do evento */
       await tx.event.update({
         where: { id },
         data: {
           type: updateEvent.type,
           name: updateEvent.name,
           startDate,
-          data: updateEvent.data as Prisma.JsonObject,
           endDate,
           isActive: updateEvent.isActive,
           groupLink: updateEvent.groupLink,
+          data: jsonData,
         },
       });
 
@@ -928,8 +930,7 @@ export class EventService {
         updateEvent.groupRoles.filter((g) => g.id).map((g) => [g.id!, g]),
       );
 
-      //REMOVER GRUPOS AUSENTES
-
+      // REMOVER GRUPOS AUSENTES
       for (const group of dbGroups.values()) {
         if (!incomingGroups.has(group.id)) {
           const hasUsers = group.roles.some((r) => r._count.EventOnUsers > 0);
@@ -940,19 +941,15 @@ export class EventService {
             );
           }
 
-          await tx.groupRoles.delete({
-            where: { id: group.id },
-          });
+          await tx.groupRoles.delete({ where: { id: group.id } });
         }
       }
 
-      //CRIAR / ATUALIZAR GRUPOS
-
+      // CRIAR / ATUALIZAR GRUPOS
       for (const group of updateEvent.groupRoles) {
         let groupId = group.id;
 
         if (groupId && dbGroups.has(groupId)) {
-          // update
           await tx.groupRoles.update({
             where: { id: groupId },
             data: {
@@ -961,7 +958,6 @@ export class EventService {
             },
           });
         } else {
-          // create
           const created = await tx.groupRoles.create({
             data: {
               name: group.name,
@@ -973,15 +969,13 @@ export class EventService {
           groupId = created.id;
         }
 
-        //ROLES DO GRUPO
-
         const dbRoles = dbGroups.get(groupId)?.roles ?? [];
 
         const incomingRoles = new Map(
           group.roles.filter((r) => r.id).map((r) => [r.id!, r]),
         );
 
-        /** REMOVER ROLES AUSENTES */
+        // REMOVER ROLES AUSENTES
         for (const role of dbRoles) {
           if (!incomingRoles.has(role.id)) {
             if (role._count.EventOnUsers > 0) {
@@ -990,13 +984,11 @@ export class EventService {
               );
             }
 
-            await tx.rolesRegistration.delete({
-              where: { id: role.id },
-            });
+            await tx.rolesRegistration.delete({ where: { id: role.id } });
           }
         }
 
-        /** CRIAR / ATUALIZAR ROLES */
+        // CRIAR / ATUALIZAR ROLES
         for (const role of group.roles) {
           if (role.id) {
             await tx.rolesRegistration.update({
@@ -1018,6 +1010,7 @@ export class EventService {
         }
       }
     });
+
     return this.findOneClear(id);
   }
 
