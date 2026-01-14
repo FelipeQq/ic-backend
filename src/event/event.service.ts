@@ -605,23 +605,29 @@ export class EventService {
             isActive: true,
           },
         });
+        let coverUrl = null;
+        let logoUrl = null;
 
-        const coverUrl = (
-          await uploadImageFirebase(
-            data.coverFile,
-            `events/${event.id}/cover/cover.${
-              data.coverFile.mimetype.split('/')[1]
-            }`,
-          )
-        ).url;
-        const logoUrl = (
-          await uploadImageFirebase(
-            data.logoFile,
-            `events/${event.id}/logo/logo.${
-              data.logoFile.mimetype.split('/')[1]
-            }`,
-          )
-        ).url;
+        if (data.coverFile) {
+          coverUrl = (
+            await uploadImageFirebase(
+              data.coverFile,
+              `events/${event.id}/cover/cover.${
+                data?.coverFile?.mimetype?.split('/')[1]
+              }`,
+            )
+          ).url;
+        }
+        if (data.logoFile) {
+          logoUrl = (
+            await uploadImageFirebase(
+              data.logoFile,
+              `events/${event.id}/logo/logo.${
+                data?.logoFile?.mimetype?.split('/')[1]
+              }`,
+            )
+          ).url;
+        }
 
         const updateEventFoto = await tx.event.update({
           where: { id: event.id },
@@ -638,7 +644,8 @@ export class EventService {
       });
 
       return result;
-    } catch {
+    } catch (error) {
+      console.log(error);
       throw new InternalServerErrorException();
     }
   }
@@ -879,13 +886,13 @@ export class EventService {
     }
 
     if (!logoUrlInverted) {
-      logoUrlInverted = event.data['logoUrlInverted'];
+      logoUrlInverted = event.data?.['logoUrlInverted'] || null;
     }
     if (!logoUrl) {
-      logoUrl = event.data['logoUrl'];
+      logoUrl = event.data?.['logoUrl'] || null;
     }
     if (!coverUrl) {
-      coverUrl = event.data['coverUrl'];
+      coverUrl = event.data?.['coverUrl'] || null;
     }
     updateEvent.data = {
       ...updateEvent.data,
