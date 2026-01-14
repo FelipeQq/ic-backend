@@ -230,8 +230,7 @@ export class EventService {
               amount: role.price,
               status:
                 role.price > 0 ? PaymentStatus.WAITING : PaymentStatus.PAID,
-              method:
-                role.price > 0 ? PaymentMethod.OTHER : PaymentMethod.OTHER,
+              method: role.price > 0 ? PaymentMethod.OTHER : PaymentMethod.CASH,
               receivedFrom: PaymentReceived.SYSTEM,
             },
           },
