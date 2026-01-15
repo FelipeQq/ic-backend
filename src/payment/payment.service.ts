@@ -655,7 +655,7 @@ export class PaymentService {
               ...rr.payment, // cada pagamento vira um item separado
               groupId: rr.role?.groupId,
               groupName: rr.role?.group?.name,
-              discountsAppliedId: rr.discount?.id || 'sss',
+              discountsAppliedId: rr.discount?.id,
             })),
         );
       });
