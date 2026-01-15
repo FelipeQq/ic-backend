@@ -26,7 +26,9 @@ type EventWithGroupRole = Prisma.EventGetPayload<{
     groupRoles: {
       include: {
         roles: {
-          include: { _count: { select: { EventOnUsers: true } } };
+          include: {
+            _count: { select: { EventOnUsers: true; Waitlist: true } };
+          };
         };
       };
     };
@@ -530,6 +532,7 @@ export class EventService {
           return {
             ...rest,
             registered: _count?.EventOnUsers ?? 0,
+            waitlisted: _count?.Waitlist ?? 0,
           };
         }),
       })),
@@ -793,7 +796,7 @@ export class EventService {
             include: {
               roles: {
                 include: {
-                  _count: { select: { EventOnUsers: true } },
+                  _count: { select: { EventOnUsers: true, Waitlist: true } },
                 },
               },
             },
