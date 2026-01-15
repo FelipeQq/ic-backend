@@ -435,51 +435,59 @@ export class PaymentService {
     method: PaymentMethod,
     payload: any,
   ) {
-    this.prisma.$transaction(async (tx) => {
-      const paymentCheckout = await tx.paymentCheckout.findMany({
-        where: { referenceId },
-        include: { payment: true },
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const paymentCheckout = await tx.paymentCheckout.findMany({
+          where: { referenceId },
+          include: { payment: true },
+        });
+        if (!paymentCheckout || paymentCheckout.length === 0) {
+          throw new NotFoundException('Payment not found');
+        }
+        if (paymentCheckout[0].payment.status === PaymentStatus.PAID) {
+          return; // idempotência
+        }
+        // marcar como recebido
+        await this.prisma.payment.updateMany({
+          where: { id: { in: paymentCheckout.map((pc) => pc.payment.id) } },
+          data: {
+            method,
+            status,
+            payload,
+          },
+        });
+        // inativar checkouts
+        await this.prisma.paymentCheckout.updateMany({
+          where: { referenceId },
+          data: { status: CheckoutStatus.INACTIVE },
+        });
       });
-      if (!paymentCheckout || paymentCheckout.length === 0) {
-        throw new NotFoundException('Payment not found');
-      }
-      if (paymentCheckout[0].payment.status === PaymentStatus.PAID) {
-        return; // idempotência
-      }
-      // marcar como recebido
-      await this.prisma.payment.updateMany({
-        where: { id: { in: paymentCheckout.map((pc) => pc.payment.id) } },
-        data: {
-          method,
-          status,
-          payload,
-        },
-      });
-      // inativar checkouts
-      await this.prisma.paymentCheckout.updateMany({
-        where: { referenceId },
-        data: { status: CheckoutStatus.INACTIVE },
-      });
-    });
-    return;
+      return { message: 'Webhook de pagamento atualizado com sucesso' };
+    } catch (error) {
+      console.log('Erro ao atualizar webhook de pagamento:', error);
+    }
   }
   async updatePaymentCheckoutWebhook(
     checkoutId: string,
     status: CheckoutStatus,
   ) {
-    this.prisma.$transaction(async (tx) => {
-      const paymentCheckout = await tx.paymentCheckout.findMany({
-        where: { checkoutId },
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const paymentCheckout = await tx.paymentCheckout.findMany({
+          where: { checkoutId },
+        });
+        if (!paymentCheckout || paymentCheckout.length === 0) {
+          throw new NotFoundException('Payment checkout not found');
+        }
+        await tx.paymentCheckout.updateMany({
+          where: { checkoutId },
+          data: { status },
+        });
       });
-      if (!paymentCheckout || paymentCheckout.length === 0) {
-        throw new NotFoundException('Payment checkout not found');
-      }
-      await tx.paymentCheckout.updateMany({
-        where: { checkoutId },
-        data: { status },
-      });
-    });
-    return;
+      return { message: 'Webhook de checkout atualizado com sucesso' };
+    } catch (error) {
+      console.log('Erro ao atualizar webhook de checkout:', error);
+    }
   }
 
   async updatePaymentStatus(payload: UpdatePaymentStatusDto) {
