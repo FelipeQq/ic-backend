@@ -502,17 +502,17 @@ export class EventService {
     return data.map((item) => {
       const rr = item.rolesRegistration;
       const role = {
-        id: rr.id,
-        description: rr.description,
-        price: rr.price,
+        id: rr?.id,
+        description: rr?.description,
+        price: rr?.price,
       };
-      const group = rr.group;
+      const group = rr?.group;
       return {
         ...item.user,
         groupsRegistration: [
           {
-            id: group.id,
-            name: group.name,
+            id: group?.id,
+            name: group?.name,
             roles: [role],
           },
         ],
