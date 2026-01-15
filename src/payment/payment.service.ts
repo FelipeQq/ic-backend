@@ -568,12 +568,14 @@ export class PaymentService {
         include: {
           rolesRegistration: {
             select: {
+              discount: { select: { id: true } },
               payment: true,
               role: {
                 select: { groupId: true, group: { select: { name: true } } },
               },
             },
           },
+
           user: {
             select: {
               id: true,
@@ -600,8 +602,9 @@ export class PaymentService {
             .map((rr) => ({
               ...eou.user,
               ...rr.payment, // cada pagamento vira um item separado
-              groupId: rr.role.groupId,
-              groupName: rr.role.group?.name,
+              groupId: rr.role?.groupId,
+              groupName: rr.role?.group?.name,
+              discountsAppliedId: rr.discount?.id || 'sss',
             })),
         );
       });

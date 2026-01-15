@@ -13,19 +13,19 @@ async function main() {
   try {
     // Caminho para o arquivo backup.sql
     const backupPath = path.join(__dirname, '..', 'backup.sql');
-    
+
     if (!fs.existsSync(backupPath)) {
       throw new Error(`Arquivo backup.sql não encontrado em: ${backupPath}`);
     }
 
     console.log('📁 Arquivo backup.sql encontrado');
-    
+
     // Obter configurações do banco do .env
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {
       throw new Error('DATABASE_URL não encontrada no .env');
     }
-    
+
     // Parse da URL do banco
     const dbUrl = new URL(databaseUrl);
     const dbHost = dbUrl.hostname;
@@ -33,26 +33,25 @@ async function main() {
     const dbUser = dbUrl.username;
     const dbPassword = dbUrl.password;
     const dbName = dbUrl.pathname.slice(1).split('?')[0];
-    
+
     console.log(`🔌 Conectando ao banco: ${dbName}@${dbHost}:${dbPort}`);
-    
+
     // Configurar variável de ambiente para senha
     process.env.PGPASSWORD = dbPassword;
-    
+
     // Executar o backup SQL usando psql
     console.log('🔄 Executando backup SQL...');
-    
+
     const psqlCommand = `psql -h ${dbHost} -p ${dbPort} -U ${dbUser} -d ${dbName} -f "${backupPath}"`;
-    
+
     try {
       const { stdout, stderr } = await execAsync(psqlCommand);
-      
+
       if (stderr && !stderr.includes('NOTICE')) {
         console.log('⚠️  Avisos durante execução:', stderr);
       }
-      
+
       console.log('✅ Backup SQL executado com sucesso');
-      
     } catch (error) {
       // Se psql falhar, tentar método alternativo
       console.log('⚠️  Método psql falhou, tentando método alternativo...');
@@ -63,20 +62,44 @@ async function main() {
     try {
       const userCount = await prisma.user.count();
       const eventCount = await prisma.event.count();
-      
+
       console.log(`👥 Usuários no banco: ${userCount}`);
       console.log(`📅 Eventos no banco: ${eventCount}`);
-      
+
       if (userCount === 0 && eventCount === 0) {
-        console.log('⚠️  Nenhum dado foi inserido. Verifique se o arquivo backup.sql é válido.');
+        console.log(
+          '⚠️  Nenhum dado foi inserido. Verifique se o arquivo backup.sql é válido.',
+        );
       }
-      
     } catch (error) {
-      console.log('⚠️  Não foi possível verificar dados inseridos:', error.message);
+      console.log(
+        '⚠️  Não foi possível verificar dados inseridos:',
+        error.message,
+      );
     }
-    
+
+    //inserir os descontos padrão se não existirem de 0 a 100 com passo de 10
+    const existingDiscounts = await prisma.discounts.findMany();
+    if (existingDiscounts.length === 0) {
+      console.log('➕ Inserindo descontos padrão...');
+      const discountPromises = [];
+      for (let i = 0; i <= 100; i += 10) {
+        discountPromises.push(
+          prisma.discounts.create({
+            data: {
+              description: `Desconto de ${i}%`,
+              percentage: i / 100,
+            },
+          }),
+        );
+      }
+      await Promise.all(discountPromises);
+      console.log('✅ Descontos padrão inseridos com sucesso');
+    } else {
+      console.log('ℹ️  Descontos já existem, pulando inserção padrão.');
+    }
+
     console.log('🎉 Seed executado com sucesso!');
-    
   } catch (error) {
     console.error('❌ Erro durante o seed:', error.message);
     process.exit(1);
@@ -88,23 +111,23 @@ async function main() {
 
 async function fallbackSeedMethod(backupPath: string) {
   console.log('🔄 Executando método alternativo...');
-  
+
   const sqlContent = fs.readFileSync(backupPath, 'utf8');
-  
+
   // Limpar comentários e linhas vazias
   const cleanSql = sqlContent
     .split('\n')
-    .filter(line => !line.trim().startsWith('--') && line.trim().length > 0)
+    .filter((line) => !line.trim().startsWith('--') && line.trim().length > 0)
     .join('\n');
-  
+
   // Dividir por statements
   const statements = cleanSql
     .split(';')
-    .map(stmt => stmt.trim())
-    .filter(stmt => stmt.length > 0);
+    .map((stmt) => stmt.trim())
+    .filter((stmt) => stmt.length > 0);
 
   let executedCount = 0;
-  
+
   for (const statement of statements) {
     if (statement.trim()) {
       try {
@@ -112,16 +135,25 @@ async function fallbackSeedMethod(backupPath: string) {
         executedCount++;
       } catch (error) {
         // Ignorar alguns erros comuns
-        if (!error.message.includes('already exists') && 
-            !error.message.includes('duplicate key') &&
-            !error.message.includes('does not exist')) {
-          console.log(`⚠️  Aviso ao executar statement: ${error.message.slice(0, 100)}...`);
+        if (
+          !error.message.includes('already exists') &&
+          !error.message.includes('duplicate key') &&
+          !error.message.includes('does not exist')
+        ) {
+          console.log(
+            `⚠️  Aviso ao executar statement: ${error.message.slice(
+              0,
+              100,
+            )}...`,
+          );
         }
       }
     }
   }
 
-  console.log(`✅ ${executedCount} statements executados pelo método alternativo`);
+  console.log(
+    `✅ ${executedCount} statements executados pelo método alternativo`,
+  );
 }
 
 main()
