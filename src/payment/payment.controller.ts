@@ -111,4 +111,13 @@ export class PaymentController {
   refund(@Param('paymentId') paymentId: string) {
     return this.paymentService.refundPayment(paymentId);
   }
+
+  // ===============================
+  // Gambis
+  // ===============================
+  @ApiOperation({ summary: 'Get discounts' })
+  @Get('discounts')
+  getDiscounts() {
+    return this.paymentService.getDiscounts();
+  }
 }

@@ -264,7 +264,7 @@ export class PaymentService {
           },
           include: {
             checkouts: true,
-            eventUserRole: { select: { role: true } },
+            eventUserRole: { select: { role: true, discount: true } },
           },
         });
 
@@ -323,6 +323,17 @@ export class PaymentService {
             price: role?.price ?? 0,
           };
         });
+        // DESCONTO
+        const totalDiscount = unpaidPayments.reduce((acc, payment) => {
+          const discount = payment.eventUserRole?.discount;
+          if (discount) {
+            return (
+              acc +
+              discount.percentage * (payment.eventUserRole?.role?.price || 0)
+            );
+          }
+          return acc;
+        }, 0);
 
         if (!tickets.length) {
           throw new BadRequestException('No tickets found for payment');
@@ -348,6 +359,7 @@ export class PaymentService {
             tax_id: user.cpf,
             phone: { country: '55', area: ddd, number: numero },
           },
+          discount_amount: totalDiscount * 100,
           items: tickets
             .filter((t) => t.price > 0)
             .map((t) => ({
@@ -542,12 +554,17 @@ export class PaymentService {
       ).url;
     }
 
-    return this.prisma.payment.update({
+    await this.prisma.payment.update({
       where: { id: payload.paymentId },
       data: {
         status: payload.status,
         method: payload.method,
         receivedFrom: PaymentReceived.EXTERNAL,
+        eventUserRole: {
+          update: {
+            discountId: payload.discountsAppliedId || null,
+          },
+        },
         payload: {
           ...(typeof payment.payload === 'object' && payment.payload !== null
             ? payment.payload
@@ -556,6 +573,37 @@ export class PaymentService {
         },
       },
     });
+    // ivalidar os checkouts que contem esse pagamento em todos os pagamentos relacionados
+    await this.prisma.$transaction(async (tx) => {
+      const activeCheckouts = await tx.paymentCheckout.findMany({
+        where: {
+          paymentId: payload.paymentId,
+          status: CheckoutStatus.ACTIVE,
+        },
+      });
+
+      const checkoutIdsToInvalidate = [
+        ...new Set(activeCheckouts.map((c) => c.checkoutId)),
+      ];
+
+      if (checkoutIdsToInvalidate.length > 0) {
+        await tx.paymentCheckout.updateMany({
+          where: {
+            checkoutId: { in: checkoutIdsToInvalidate },
+            status: CheckoutStatus.ACTIVE,
+          },
+          data: { status: CheckoutStatus.INACTIVE },
+        });
+      }
+    });
+
+    // await this.prisma.paymentCheckout.updateMany({
+    //   where: {
+    //     paymentId: payload.paymentId,
+    //     status: CheckoutStatus.ACTIVE,
+    //   },
+    //   data: { status: CheckoutStatus.INACTIVE },
+    // });
   }
 
   async findPaymentsByEvent(eventId?: string, userId?: string) {
@@ -744,6 +792,16 @@ export class PaymentService {
         group: w.rolesRegistration!.group.name,
         price: w.rolesRegistration!.price,
       })),
+    }));
+  }
+
+  //gambis
+  async getDiscounts() {
+    const data = await this.prisma.discounts.findMany();
+    return data.map((d) => ({
+      id: d.id,
+      description: d.description,
+      percentage: d.percentage,
     }));
   }
 }

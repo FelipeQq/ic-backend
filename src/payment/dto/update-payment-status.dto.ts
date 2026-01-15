@@ -20,4 +20,8 @@ export class UpdatePaymentStatusDto {
   @ApiProperty({ type: 'string', required: false })
   @IsOptional()
   paymentId?: string;
+
+  @ApiProperty({ type: 'string', required: false })
+  @IsOptional()
+  discountsAppliedId?: string;
 }
