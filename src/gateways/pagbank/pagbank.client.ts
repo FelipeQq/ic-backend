@@ -48,4 +48,26 @@ export class PagbankClient {
       );
     }
   }
+
+  async inactivateCheckout(checkoutId: string) {
+    try {
+      const response = await this.http.post(
+        `/checkouts/${checkoutId}/inactivate`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.TOKEN_API_PAG_BANCK}`,
+            Accept: 'application/json',
+          },
+        },
+      );
+
+      return response.data;
+    } catch (err: any) {
+      throw new HttpException(
+        err.response?.data || 'Erro PagBank',
+        err.response?.status || 500,
+      );
+    }
+  }
 }

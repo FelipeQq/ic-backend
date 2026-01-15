@@ -240,11 +240,11 @@ export class PaymentService {
   async createCheckout(dto: CreatePaymentCheckoutDto) {
     const { userId, eventId, roleRegistrationId } = dto;
 
-    // ============================
-    // FASE 1 — Somente leitura e preparação
-    // ============================
-
     try {
+      // ============================
+      // FASE 1 — Somente leitura e preparação
+      // ============================
+
       const prepared = await this.prisma.$transaction(async (tx) => {
         if (roleRegistrationId.length === 0) {
           throw new BadRequestException('No role registrations provided');
@@ -400,6 +400,15 @@ export class PaymentService {
       const linkPay =
         result.links.find((l: any) => l.rel === 'PAY')?.href ?? '';
 
+      //invalidar checkouts antigos na api (assíncrono)
+      for (const checkoutId of prepared.checkoutIdsToInvalidate) {
+        this.pagbankService.inactivateCheckout(checkoutId).catch((err) => {
+          console.log(
+            `Erro ao inativar checkout ${checkoutId} na PagBank:`,
+            JSON.stringify(err),
+          );
+        });
+      }
       // ============================
       // FASE 3 — Agora sim: grava tudo de uma vez
       // ============================

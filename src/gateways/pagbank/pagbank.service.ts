@@ -14,4 +14,7 @@ export class PagbankService {
   async getCheckout(checkoutId: string) {
     return this.client.getCheckouts(checkoutId);
   }
+  async inactivateCheckout(checkoutId: string) {
+    return this.client.inactivateCheckout(checkoutId);
+  }
 }
