@@ -340,10 +340,11 @@ export class PaymentService {
         }
 
         const { ddd, numero } = this.extrairDddENumero(user.cellphone);
-
+        const dateExpiration = new Date(Date.now() + 1 * 60 * 60 * 1000); //1h
         const payload: CreatePagbankCheckoutDto = {
           reference_id: randomUUID(),
           soft_descriptor: 'Igreja de cristo',
+          expiration_date: dateExpiration.toISOString(),
           payment_notification_urls: [
             `${process.env.URL_BACKEND}/webhooks/pagbank/payments`,
           ],
@@ -560,11 +561,13 @@ export class PaymentService {
         status: payload.status,
         method: payload.method,
         receivedFrom: PaymentReceived.EXTERNAL,
-        eventUserRole: {
-          update: {
-            discountId: payload.discountsAppliedId || null,
+        ...(payload.discountsAppliedId && {
+          eventUserRole: {
+            update: {
+              discountId: payload?.discountsAppliedId || null,
+            },
           },
-        },
+        }),
         payload: {
           ...(typeof payment.payload === 'object' && payment.payload !== null
             ? payment.payload
