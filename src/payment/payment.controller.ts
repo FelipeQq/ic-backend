@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
-import { PaymentStatus } from '@prisma/client';
+
 import {
   ApiBearerAuth,
   ApiConsumes,

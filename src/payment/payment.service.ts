@@ -275,7 +275,7 @@ export class PaymentService {
         const unpaidPayments = payments.filter(
           (p) => p.status !== PaymentStatus.PAID,
         );
-
+        // nao deve voltar como erro
         if (!unpaidPayments.length) {
           throw new BadRequestException('Some registrations are already paid');
         }
@@ -306,6 +306,16 @@ export class PaymentService {
             });
 
             if (usedByOthers.length === 0) {
+              //mudar o payment para WAITING
+              await tx.payment.updateMany({
+                where: {
+                  id: { in: unpaidPayments.map((p) => p.id) },
+                },
+                data: {
+                  status: PaymentStatus.WAITING,
+                  method: PaymentMethod.OTHER,
+                },
+              });
               return {
                 reuse: true,
                 link: activeCheckouts[0].link,
@@ -447,6 +457,13 @@ export class PaymentService {
             status: CheckoutStatus.ACTIVE,
             amount: prepared.tickets.reduce((sum, t) => sum + t.price, 0),
           })),
+        });
+        //mudar os status dos pagamentos para WAITING
+        await tx.payment.updateMany({
+          where: {
+            id: { in: prepared.unpaidPayments.map((p) => p.id) },
+          },
+          data: { status: PaymentStatus.WAITING, method: PaymentMethod.OTHER },
         });
       });
 

@@ -10,19 +10,21 @@ export class PagbankClient {
     this.http = axios.create({
       baseURL: process.env.URL_API_PAG_BANCK,
       timeout: 15000,
+      headers: {
+        Accept: '*/*',
+      },
+    });
+
+    // Interceptor para sempre injetar o token corretamente
+    this.http.interceptors.request.use((config) => {
+      config.headers.Authorization = `Bearer ${process.env.TOKEN_API_PAG_BANCK?.trim()}`;
+      return config;
     });
   }
 
   async createCheckout(payload: CreatePagbankCheckoutDto) {
     try {
-      const response = await this.http.post('/checkouts', payload, {
-        headers: {
-          Authorization: `Bearer ${process.env.TOKEN_API_PAG_BANCK}`,
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-
+      const response = await this.http.post('/checkouts', payload);
       return response.data;
     } catch (err: any) {
       throw new HttpException(
@@ -31,15 +33,10 @@ export class PagbankClient {
       );
     }
   }
-  async getCheckouts(checkoutId: string) {
-    try {
-      const response = await this.http.get(`/checkouts/${checkoutId}`, {
-        headers: {
-          Authorization: `Bearer ${process.env.TOKEN_API_PAG_BANCK}`,
-          Accept: 'application/json',
-        },
-      });
 
+  async getCheckout(checkoutId: string) {
+    try {
+      const response = await this.http.get(`/checkouts/${checkoutId}`);
       return response.data;
     } catch (err: any) {
       throw new HttpException(
@@ -53,14 +50,21 @@ export class PagbankClient {
     try {
       const response = await this.http.post(
         `/checkouts/${checkoutId}/inactivate`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.TOKEN_API_PAG_BANCK}`,
-            Accept: 'application/json',
-          },
-        },
       );
+      return response.data;
+    } catch (err: any) {
+      throw new HttpException(
+        err.response?.data || 'Erro PagBank',
+        err.response?.status || 500,
+      );
+    }
+  }
+
+  async getPaymentStatus(referenceId: string) {
+    try {
+      const response = await this.http.get('/charges', {
+        params: { reference_id: referenceId },
+      });
 
       return response.data;
     } catch (err: any) {
@@ -69,5 +73,13 @@ export class PagbankClient {
         err.response?.status || 500,
       );
     }
+  }
+
+  private logError(err: any) {
+    console.error('PagBank ERROR:', {
+      status: err.response?.status,
+      data: err.response?.data,
+      message: err.message,
+    });
   }
 }
