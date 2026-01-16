@@ -909,7 +909,7 @@ export class EventService {
 
     const startDate = new Date(updateEvent.startDate);
     const endDate = new Date(updateEvent.endDate);
-
+    //
     // ================= TRANSACTION SOMENTE PARA BANCO =================
 
     await this.prisma.event.update({
