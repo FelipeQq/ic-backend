@@ -8,7 +8,7 @@ export class PagbankClient {
 
   constructor() {
     this.http = axios.create({
-      baseURL: process.env.URL_API_PAG_BANCK,
+      baseURL: process.env.URL_API_PAG_BANK,
       timeout: 15000,
     });
   }
@@ -17,7 +17,7 @@ export class PagbankClient {
     try {
       const response = await this.http.post('/checkouts', payload, {
         headers: {
-          Authorization: `Bearer ${process.env.TOKEN_API_PAG_BANCK}`,
+          Authorization: `Bearer ${process.env.TOKEN_API_PAG_BANK}`,
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
@@ -35,7 +35,7 @@ export class PagbankClient {
     try {
       const response = await this.http.get(`/checkouts/${checkoutId}`, {
         headers: {
-          Authorization: `Bearer ${process.env.TOKEN_API_PAG_BANCK}`,
+          Authorization: `Bearer ${process.env.TOKEN_API_PAG_BANK}`,
           Accept: 'application/json',
         },
       });
