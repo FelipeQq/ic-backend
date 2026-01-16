@@ -26,7 +26,9 @@ type EventWithGroupRole = Prisma.EventGetPayload<{
     groupRoles: {
       include: {
         roles: {
-          include: { _count: { select: { EventOnUsers: true } } };
+          include: {
+            _count: { select: { EventOnUsers: true; Waitlist: true } };
+          };
         };
       };
     };
@@ -228,8 +230,9 @@ export class EventService {
           payment: {
             create: {
               amount: role.price,
-              status: PaymentStatus.WAITING,
-              method: PaymentMethod.OTHER,
+              status:
+                role.price > 0 ? PaymentStatus.WAITING : PaymentStatus.PAID,
+              method: role.price > 0 ? PaymentMethod.OTHER : PaymentMethod.CASH,
               receivedFrom: PaymentReceived.SYSTEM,
             },
           },
@@ -501,17 +504,17 @@ export class EventService {
     return data.map((item) => {
       const rr = item.rolesRegistration;
       const role = {
-        id: rr.id,
-        description: rr.description,
-        price: rr.price,
+        id: rr?.id,
+        description: rr?.description,
+        price: rr?.price,
       };
-      const group = rr.group;
+      const group = rr?.group;
       return {
         ...item.user,
         groupsRegistration: [
           {
-            id: group.id,
-            name: group.name,
+            id: group?.id,
+            name: group?.name,
             roles: [role],
           },
         ],
@@ -529,6 +532,7 @@ export class EventService {
           return {
             ...rest,
             registered: _count?.EventOnUsers ?? 0,
+            waitlisted: _count?.Waitlist ?? 0,
           };
         }),
       })),
@@ -792,7 +796,7 @@ export class EventService {
             include: {
               roles: {
                 include: {
-                  _count: { select: { EventOnUsers: true } },
+                  _count: { select: { EventOnUsers: true, Waitlist: true } },
                 },
               },
             },

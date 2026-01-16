@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsDateString,
   IsInt,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -21,7 +22,7 @@ class RoleDto {
   @IsString()
   id?: string;
 
-  @IsInt()
+  @IsNumber()
   price: number;
 
   @IsString()

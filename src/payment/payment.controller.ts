@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
-import { PaymentStatus } from '@prisma/client';
+
 import {
   ApiBearerAuth,
   ApiConsumes,
@@ -110,5 +110,14 @@ export class PaymentController {
   @Patch('payments/:paymentId/refund')
   refund(@Param('paymentId') paymentId: string) {
     return this.paymentService.refundPayment(paymentId);
+  }
+
+  // ===============================
+  // Gambis
+  // ===============================
+  @ApiOperation({ summary: 'Get discounts' })
+  @Get('discounts')
+  getDiscounts() {
+    return this.paymentService.getDiscounts();
   }
 }

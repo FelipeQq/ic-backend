@@ -12,6 +12,12 @@ export class PagbankService {
     return this.client.createCheckout(data);
   }
   async getCheckout(checkoutId: string) {
-    return this.client.getCheckouts(checkoutId);
+    return this.client.getCheckout(checkoutId);
+  }
+  async inactivateCheckout(checkoutId: string) {
+    return this.client.inactivateCheckout(checkoutId);
+  }
+  async getPaymentStatus(referenceId: string) {
+    return this.client.getPaymentStatus(referenceId);
   }
 }
