@@ -912,116 +912,80 @@ export class EventService {
 
     // ================= TRANSACTION SOMENTE PARA BANCO =================
     await this.prisma.$transaction(async (tx) => {
-      // Atualiza o evento
-      await tx.event.update({
-        where: { id },
-        data: {
-          type: updateEvent.type,
-          name: updateEvent.name,
-          startDate,
-          endDate,
-          isActive: updateEvent.isActive,
-          groupLink: updateEvent.groupLink,
-          data: jsonData,
-        },
-      });
+  // 1️⃣ Atualiza evento
+  await tx.event.update({ ... });
 
-      if (!updateEvent.groupRoles?.length) return;
+  if (!updateEvent.groupRoles?.length) return;
 
-      const dbGroups = new Map(event.groupRoles.map((g) => [g.id, g]));
-      const incomingGroups = new Map(
-        updateEvent.groupRoles.filter((g) => g.id).map((g) => [g.id!, g]),
-      );
+  const dbGroups = new Map(event.groupRoles.map((g) => [g.id, g]));
+  const incomingGroups = new Map(
+    updateEvent.groupRoles.filter((g) => g.id).map((g) => [g.id!, g]),
+  );
 
-      // 1️⃣ Remover grupos ausentes
-      const deleteGroupOps: Promise<any>[] = [];
-      for (const group of dbGroups.values()) {
-        if (!incomingGroups.has(group.id)) {
-          const hasUsers = group.roles.some((r) => r._count.EventOnUsers > 0);
-          if (hasUsers)
-            throw new BadRequestException(
-              `Group "${group.name}" has registered users and cannot be removed`,
-            );
-          deleteGroupOps.push(
-            tx.groupRoles.delete({ where: { id: group.id } }),
-          );
-        }
-      }
-
-      // 2️⃣ Criar/atualizar grupos
-      const groupOps: Promise<any>[] = [];
-      for (const group of updateEvent.groupRoles) {
-        if (group.id && dbGroups.has(group.id)) {
-          groupOps.push(
-            tx.groupRoles.update({
-              where: { id: group.id },
-              data: { name: group.name, capacity: group.capacity },
-            }),
-          );
-        } else {
-          groupOps.push(
-            tx.groupRoles.create({
-              data: { name: group.name, capacity: group.capacity, eventId: id },
-            }),
-          );
-        }
-      }
-
-      // Executa deletions e updates/criates de grupos em paralelo
-      const createdOrUpdatedGroups = await Promise.all([
-        ...deleteGroupOps,
-        ...groupOps,
-      ]);
-
-      // 3️⃣ Atualiza roles
-      const roleOps: Promise<any>[] = [];
-      for (const group of updateEvent.groupRoles) {
-        const groupId =
-          group.id ??
-          createdOrUpdatedGroups.find((g) => g.name === group.name)?.id;
-        const dbRoles = dbGroups.get(groupId)?.roles ?? [];
-        const incomingRoles = new Map(
-          group.roles.filter((r) => r.id).map((r) => [r.id!, r]),
+  // 2️⃣ Remove grupos ausentes
+  for (const group of dbGroups.values()) {
+    if (!incomingGroups.has(group.id)) {
+      const hasUsers = group.roles.some((r) => r._count.EventOnUsers > 0);
+      if (hasUsers)
+        throw new BadRequestException(
+          `Group "${group.name}" has registered users and cannot be removed`,
         );
+      await tx.groupRoles.delete({ where: { id: group.id } });
+    }
+  }
 
-        // Remover roles ausentes
-        for (const role of dbRoles) {
-          if (!incomingRoles.has(role.id)) {
-            if (role._count.EventOnUsers > 0)
-              throw new BadRequestException(
-                `Role "${role.description}" already has users and cannot be removed`,
-              );
-            roleOps.push(
-              tx.rolesRegistration.delete({ where: { id: role.id } }),
-            );
-          }
-        }
+  // 3️⃣ Criar/Atualizar grupos sequencialmente
+  const groupIdMap = new Map<string, string>(); // name => id
+  for (const group of updateEvent.groupRoles) {
+    if (group.id && dbGroups.has(group.id)) {
+      const updatedGroup = await tx.groupRoles.update({
+        where: { id: group.id },
+        data: { name: group.name, capacity: group.capacity },
+      });
+      groupIdMap.set(group.name, updatedGroup.id);
+    } else {
+      const createdGroup = await tx.groupRoles.create({
+        data: { name: group.name, capacity: group.capacity, eventId: id },
+      });
+      groupIdMap.set(group.name, createdGroup.id);
+    }
+  }
 
-        // Criar/atualizar roles
-        for (const role of group.roles) {
-          if (role.id) {
-            roleOps.push(
-              tx.rolesRegistration.update({
-                where: { id: role.id },
-                data: { description: role.description, price: role.price },
-              }),
-            );
-          } else {
-            roleOps.push(
-              tx.rolesRegistration.create({
-                data: {
-                  description: role.description,
-                  price: role.price,
-                  groupId,
-                },
-              }),
-            );
-          }
-        }
+  // 4️⃣ Atualiza roles
+  for (const group of updateEvent.groupRoles) {
+    const groupId = group.id ?? groupIdMap.get(group.name)!;
+    const dbRoles = dbGroups.get(groupId)?.roles ?? [];
+    const incomingRoles = new Map(
+      group.roles.filter((r) => r.id).map((r) => [r.id!, r]),
+    );
+
+    // Remover roles ausentes
+    for (const role of dbRoles) {
+      if (!incomingRoles.has(role.id)) {
+        if (role._count.EventOnUsers > 0)
+          throw new BadRequestException(
+            `Role "${role.description}" already has users and cannot be removed`,
+          );
+        await tx.rolesRegistration.delete({ where: { id: role.id } });
       }
+    }
 
-      await Promise.all(roleOps);
-    });
+    // Criar/atualizar roles
+    for (const role of group.roles) {
+      if (role.id) {
+        await tx.rolesRegistration.update({
+          where: { id: role.id },
+          data: { description: role.description, price: role.price },
+        });
+      } else {
+        await tx.rolesRegistration.create({
+          data: { description: role.description, price: role.price, groupId },
+        });
+      }
+    }
+  }
+});
+
 
     return this.findOneClear(id);
   }
