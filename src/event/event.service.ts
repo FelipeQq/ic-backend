@@ -825,6 +825,7 @@ export class EventService {
   }
 
   async update(id: string, updateEvent: EventDto) {
+    // ================= BUSCA O EVENTO =================
     const event = await this.prisma.event.findUnique({
       where: { id },
       include: {
@@ -845,7 +846,6 @@ export class EventService {
     }
 
     // ================= UPLOADS (FORA DA TRANSACTION) =================
-
     let coverUrl = event.data?.['coverUrl'] ?? null;
     let logoUrl = event.data?.['logoUrl'] ?? null;
     let logoUrlInverted = event.data?.['logoUrlInverted'] ?? null;
@@ -895,24 +895,24 @@ export class EventService {
         )
       ).url;
     }
+
     const safeData = structuredClone(updateEvent.data ?? {}) as Record<
       string,
       any
     >;
-
     const jsonData: Prisma.JsonObject = {
       ...safeData,
       coverUrl,
       logoUrl,
       logoUrlInverted,
-    } as Prisma.JsonObject;
+    };
 
     const startDate = new Date(updateEvent.startDate);
     const endDate = new Date(updateEvent.endDate);
 
     // ================= TRANSACTION SOMENTE PARA BANCO =================
-
     await this.prisma.$transaction(async (tx) => {
+      // Atualiza o evento
       await tx.event.update({
         where: { id },
         data: {
@@ -929,90 +929,98 @@ export class EventService {
       if (!updateEvent.groupRoles?.length) return;
 
       const dbGroups = new Map(event.groupRoles.map((g) => [g.id, g]));
-
       const incomingGroups = new Map(
         updateEvent.groupRoles.filter((g) => g.id).map((g) => [g.id!, g]),
       );
 
-      // REMOVER GRUPOS AUSENTES
+      // 1️⃣ Remover grupos ausentes
+      const deleteGroupOps: Promise<any>[] = [];
       for (const group of dbGroups.values()) {
         if (!incomingGroups.has(group.id)) {
           const hasUsers = group.roles.some((r) => r._count.EventOnUsers > 0);
-
-          if (hasUsers) {
+          if (hasUsers)
             throw new BadRequestException(
               `Group "${group.name}" has registered users and cannot be removed`,
             );
-          }
-
-          await tx.groupRoles.delete({ where: { id: group.id } });
+          deleteGroupOps.push(
+            tx.groupRoles.delete({ where: { id: group.id } }),
+          );
         }
       }
 
-      // CRIAR / ATUALIZAR GRUPOS
+      // 2️⃣ Criar/atualizar grupos
+      const groupOps: Promise<any>[] = [];
       for (const group of updateEvent.groupRoles) {
-        let groupId = group.id;
-
-        if (groupId && dbGroups.has(groupId)) {
-          await tx.groupRoles.update({
-            where: { id: groupId },
-            data: {
-              name: group.name,
-              capacity: group.capacity,
-            },
-          });
+        if (group.id && dbGroups.has(group.id)) {
+          groupOps.push(
+            tx.groupRoles.update({
+              where: { id: group.id },
+              data: { name: group.name, capacity: group.capacity },
+            }),
+          );
         } else {
-          const created = await tx.groupRoles.create({
-            data: {
-              name: group.name,
-              capacity: group.capacity,
-              eventId: id,
-            },
-          });
-
-          groupId = created.id;
+          groupOps.push(
+            tx.groupRoles.create({
+              data: { name: group.name, capacity: group.capacity, eventId: id },
+            }),
+          );
         }
+      }
 
+      // Executa deletions e updates/criates de grupos em paralelo
+      const createdOrUpdatedGroups = await Promise.all([
+        ...deleteGroupOps,
+        ...groupOps,
+      ]);
+
+      // 3️⃣ Atualiza roles
+      const roleOps: Promise<any>[] = [];
+      for (const group of updateEvent.groupRoles) {
+        const groupId =
+          group.id ??
+          createdOrUpdatedGroups.find((g) => g.name === group.name)?.id;
         const dbRoles = dbGroups.get(groupId)?.roles ?? [];
-
         const incomingRoles = new Map(
           group.roles.filter((r) => r.id).map((r) => [r.id!, r]),
         );
 
-        // REMOVER ROLES AUSENTES
+        // Remover roles ausentes
         for (const role of dbRoles) {
           if (!incomingRoles.has(role.id)) {
-            if (role._count.EventOnUsers > 0) {
+            if (role._count.EventOnUsers > 0)
               throw new BadRequestException(
                 `Role "${role.description}" already has users and cannot be removed`,
               );
-            }
-
-            await tx.rolesRegistration.delete({ where: { id: role.id } });
+            roleOps.push(
+              tx.rolesRegistration.delete({ where: { id: role.id } }),
+            );
           }
         }
 
-        // CRIAR / ATUALIZAR ROLES
+        // Criar/atualizar roles
         for (const role of group.roles) {
           if (role.id) {
-            await tx.rolesRegistration.update({
-              where: { id: role.id },
-              data: {
-                description: role.description,
-                price: role.price,
-              },
-            });
+            roleOps.push(
+              tx.rolesRegistration.update({
+                where: { id: role.id },
+                data: { description: role.description, price: role.price },
+              }),
+            );
           } else {
-            await tx.rolesRegistration.create({
-              data: {
-                description: role.description,
-                price: role.price,
-                groupId,
-              },
-            });
+            roleOps.push(
+              tx.rolesRegistration.create({
+                data: {
+                  description: role.description,
+                  price: role.price,
+                  groupId,
+                },
+              }),
+            );
           }
         }
       }
+
+      await Promise.all(roleOps);
     });
 
     return this.findOneClear(id);
