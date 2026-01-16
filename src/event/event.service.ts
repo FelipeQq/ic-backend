@@ -830,22 +830,15 @@ export class EventService {
       include: {
         groupRoles: {
           include: {
-            roles: {
-              include: {
-                _count: { select: { EventOnUsers: true } },
-              },
-            },
+            roles: { include: { _count: { select: { EventOnUsers: true } } } },
           },
         },
       },
     });
 
-    if (!event) {
-      throw new NotFoundException('Event does not exist');
-    }
+    if (!event) throw new NotFoundException('Event does not exist');
 
     // ================= UPLOADS (FORA DA TRANSACTION) =================
-
     let coverUrl = event.data?.['coverUrl'] ?? null;
     let logoUrl = event.data?.['logoUrl'] ?? null;
     let logoUrlInverted = event.data?.['logoUrlInverted'] ?? null;
@@ -859,7 +852,6 @@ export class EventService {
             }`,
           )
         : null,
-
       updateEvent.logoFile
         ? uploadImageFirebase(
             updateEvent.logoFile,
@@ -873,7 +865,6 @@ export class EventService {
     if (coverResult) coverUrl = coverResult.url;
     if (logoResult) logoUrl = logoResult.url;
 
-    // Logo invertida apenas se veio nova logo
     if (updateEvent.logoFile) {
       const blackBuffer = await sharp(updateEvent.logoFile.buffer)
         .negate({ alpha: false })
@@ -895,11 +886,11 @@ export class EventService {
         )
       ).url;
     }
+
     const safeData = structuredClone(updateEvent.data ?? {}) as Record<
       string,
       any
     >;
-
     const jsonData: Prisma.JsonObject = {
       ...safeData,
       coverUrl,
@@ -909,111 +900,109 @@ export class EventService {
 
     const startDate = new Date(updateEvent.startDate);
     const endDate = new Date(updateEvent.endDate);
-    //
+
     // ================= TRANSACTION SOMENTE PARA BANCO =================
+    const ops: Prisma.PrismaPromise<any>[] = [];
 
-    await this.prisma.event.update({
-      where: { id },
-      data: {
-        type: updateEvent.type,
-        name: updateEvent.name,
-        startDate,
-        endDate,
-        isActive: updateEvent.isActive,
-        groupLink: updateEvent.groupLink,
-        data: jsonData,
-      },
-    });
-
-    if (!updateEvent.groupRoles?.length) return;
-
-    const dbGroups = new Map(event.groupRoles.map((g) => [g.id, g]));
-
-    const incomingGroups = new Map(
-      updateEvent.groupRoles.filter((g) => g.id).map((g) => [g.id!, g]),
+    // Atualiza o evento
+    ops.push(
+      this.prisma.event.update({
+        where: { id },
+        data: {
+          type: updateEvent.type,
+          name: updateEvent.name,
+          startDate,
+          endDate,
+          isActive: updateEvent.isActive,
+          groupLink: updateEvent.groupLink,
+          data: jsonData,
+        },
+      }),
     );
 
-    // REMOVER GRUPOS AUSENTES
-    for (const group of dbGroups.values()) {
-      if (!incomingGroups.has(group.id)) {
-        const hasUsers = group.roles.some((r) => r._count.EventOnUsers > 0);
+    if (updateEvent.groupRoles?.length) {
+      const dbGroups = new Map(event.groupRoles.map((g) => [g.id, g]));
 
-        if (hasUsers) {
-          throw new BadRequestException(
-            `Group "${group.name}" has registered users and cannot be removed`,
-          );
-        }
-
-        await this.prisma.groupRoles.delete({ where: { id: group.id } });
-      }
-    }
-
-    // CRIAR / ATUALIZAR GRUPOS
-    for (const group of updateEvent.groupRoles) {
-      let groupId = group.id;
-
-      if (groupId && dbGroups.has(groupId)) {
-        await this.prisma.groupRoles.update({
-          where: { id: groupId },
-          data: {
-            name: group.name,
-            capacity: group.capacity,
-          },
-        });
-      } else {
-        const created = await this.prisma.groupRoles.create({
-          data: {
-            name: group.name,
-            capacity: group.capacity,
-            eventId: id,
-          },
-        });
-
-        groupId = created.id;
-      }
-
-      const dbRoles = dbGroups.get(groupId)?.roles ?? [];
-
-      const incomingRoles = new Map(
-        group.roles.filter((r) => r.id).map((r) => [r.id!, r]),
+      const incomingGroups = new Map(
+        updateEvent.groupRoles.filter((g) => g.id).map((g) => [g.id!, g]),
       );
 
-      // REMOVER ROLES AUSENTES
-      for (const role of dbRoles) {
-        if (!incomingRoles.has(role.id)) {
-          if (role._count.EventOnUsers > 0) {
+      // REMOVER GRUPOS AUSENTES
+      for (const group of dbGroups.values()) {
+        if (!incomingGroups.has(group.id)) {
+          const hasUsers = group.roles.some((r) => r._count.EventOnUsers > 0);
+          if (hasUsers) {
             throw new BadRequestException(
-              `Role "${role.description}" already has users and cannot be removed`,
+              `Group "${group.name}" has registered users and cannot be removed`,
             );
           }
-
-          await this.prisma.rolesRegistration.delete({
-            where: { id: role.id },
-          });
+          ops.push(this.prisma.groupRoles.delete({ where: { id: group.id } }));
         }
       }
 
-      // CRIAR / ATUALIZAR ROLES
-      for (const role of group.roles) {
-        if (role.id) {
-          await this.prisma.rolesRegistration.update({
-            where: { id: role.id },
-            data: {
-              description: role.description,
-              price: role.price,
-            },
-          });
+      // CRIAR / ATUALIZAR GRUPOS E ROLES
+      for (const group of updateEvent.groupRoles) {
+        let groupId = group.id;
+
+        if (groupId && dbGroups.has(groupId)) {
+          ops.push(
+            this.prisma.groupRoles.update({
+              where: { id: groupId },
+              data: { name: group.name, capacity: group.capacity },
+            }),
+          );
         } else {
-          await this.prisma.rolesRegistration.create({
-            data: {
-              description: role.description,
-              price: role.price,
-              groupId,
-            },
+          const created = await this.prisma.groupRoles.create({
+            data: { name: group.name, capacity: group.capacity, eventId: id },
           });
+          groupId = created.id;
+        }
+
+        const dbRoles = dbGroups.get(groupId)?.roles ?? [];
+        const incomingRoles = new Map(
+          group.roles.filter((r) => r.id).map((r) => [r.id!, r]),
+        );
+
+        // REMOVER ROLES AUSENTES
+        for (const role of dbRoles) {
+          if (!incomingRoles.has(role.id)) {
+            if (role._count.EventOnUsers > 0) {
+              throw new BadRequestException(
+                `Role "${role.description}" already has users and cannot be removed`,
+              );
+            }
+            ops.push(
+              this.prisma.rolesRegistration.delete({ where: { id: role.id } }),
+            );
+          }
+        }
+
+        // CRIAR / ATUALIZAR ROLES
+        for (const role of group.roles) {
+          if (role.id) {
+            ops.push(
+              this.prisma.rolesRegistration.update({
+                where: { id: role.id },
+                data: { description: role.description, price: role.price },
+              }),
+            );
+          } else {
+            ops.push(
+              this.prisma.rolesRegistration.create({
+                data: {
+                  description: role.description,
+                  price: role.price,
+                  groupId,
+                },
+              }),
+            );
+          }
         }
       }
     }
+
+    // Executa TODAS as operações em uma transaction segura
+    await this.prisma.$transaction(ops);
 
     return this.findOneClear(id);
   }
