@@ -13,7 +13,7 @@ export class CronService {
 
   private PAGBANK_TOKEN = process.env.PAGBANK_TOKEN;
 
-  @Cron(CronExpression.EVERY_3_HOURS)
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async reconcilePayments() {
     this.logger.log('⏳ Iniciando reconciliação de pagamentos...');
     // 1. Busca todos os pagamentos pendentes ou em analise no banco

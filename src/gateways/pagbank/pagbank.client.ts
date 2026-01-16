@@ -15,13 +15,63 @@ export class PagbankClient {
       },
     });
 
-    // Interceptor para sempre injetar o token corretamente
+    // Interceptor: injeta token + gera CURL
     this.http.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${process.env.TOKEN_API_PAG_BANCK?.trim()}`;
+
+      const curl = this.generateCurl(config);
+
+      console.log(
+        '\n================ OUTGOING CURL (PAGBANK) ================',
+      );
+      console.log(curl);
+      console.log(
+        '=========================================================\n',
+      );
+
       return config;
     });
-  }
 
+    // Interceptor de response (sucesso)
+    this.http.interceptors.response.use(
+      (response) => {
+        console.log('🟢 PAGBANK RESPONSE:', {
+          status: response.status,
+          data: response.data,
+        });
+        return response;
+      },
+      (error) => {
+        console.log('🔴 PAGBANK ERROR RESPONSE:', {
+          status: error?.response?.status,
+          data: error?.response?.data,
+        });
+        return Promise.reject(error);
+      },
+    );
+  }
+  private generateCurl(config: any): string {
+    const method = config.method?.toUpperCase();
+    const url = `${config.baseURL}${config.url}`;
+
+    const headers = Object.entries(config.headers || {})
+      .map(([k, v]) => `-H "${k}: ${v}"`)
+      .join(' \\\n  ');
+
+    let body = '';
+
+    if (config.data) {
+      if (typeof config.data === 'string') {
+        body = `-d '${config.data}'`;
+      } else {
+        body = `-d '${JSON.stringify(config.data)}'`;
+      }
+    }
+
+    return `curl -X ${method} "${url}" \\\n  ${headers}${
+      body ? ' \\\n  ' + body : ''
+    }`;
+  }
   async createCheckout(payload: CreatePagbankCheckoutDto) {
     try {
       const response = await this.http.post('/checkouts', payload);

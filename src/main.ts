@@ -5,6 +5,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { initializeFirebase } from './firebase.config';
 import { json, urlencoded } from 'express';
+import { CurlLoggerInterceptor } from './curl-file.interceptor';
 
 dotenv.config();
 initializeFirebase();
@@ -37,6 +38,8 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  app.useGlobalInterceptors(new CurlLoggerInterceptor());
+
   await app.listen(port);
 }
 bootstrap();
