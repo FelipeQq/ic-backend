@@ -825,7 +825,6 @@ export class EventService {
   }
 
   async update(id: string, updateEvent: EventDto) {
-    // ================= BUSCA EVENTO =================
     const event = await this.prisma.event.findUnique({
       where: { id },
       include: {
@@ -845,30 +844,37 @@ export class EventService {
       throw new NotFoundException('Event does not exist');
     }
 
-    // ================= UPLOADS FORA DA TRANSACTION =================
+    // ================= UPLOADS (FORA DA TRANSACTION) =================
+
     let coverUrl = event.data?.['coverUrl'] ?? null;
     let logoUrl = event.data?.['logoUrl'] ?? null;
     let logoUrlInverted = event.data?.['logoUrlInverted'] ?? null;
 
-    if (updateEvent.coverFile) {
-      const result = await uploadImageFirebase(
-        updateEvent.coverFile,
-        `events/${event.id}/cover/cover.${
-          updateEvent.coverFile.mimetype.split('/')[1]
-        }`,
-      );
-      coverUrl = result.url;
-    }
+    const [coverResult, logoResult] = await Promise.all([
+      updateEvent.coverFile
+        ? uploadImageFirebase(
+            updateEvent.coverFile,
+            `events/${event.id}/cover/cover.${
+              updateEvent.coverFile.mimetype.split('/')[1]
+            }`,
+          )
+        : null,
 
+      updateEvent.logoFile
+        ? uploadImageFirebase(
+            updateEvent.logoFile,
+            `events/${event.id}/logo/logo.${
+              updateEvent.logoFile.mimetype.split('/')[1]
+            }`,
+          )
+        : null,
+    ]);
+
+    if (coverResult) coverUrl = coverResult.url;
+    if (logoResult) logoUrl = logoResult.url;
+
+    // Logo invertida apenas se veio nova logo
     if (updateEvent.logoFile) {
-      const result = await uploadImageFirebase(
-        updateEvent.logoFile,
-        `events/${event.id}/logo/logo.${
-          updateEvent.logoFile.mimetype.split('/')[1]
-        }`,
-      );
-      logoUrl = result.url;
-
       const blackBuffer = await sharp(updateEvent.logoFile.buffer)
         .negate({ alpha: false })
         .greyscale()
@@ -882,14 +888,13 @@ export class EventService {
         mimetype: 'image/png',
       };
 
-      const inverted = await uploadImageFirebase(
-        blackFile,
-        `events/${event.id}/logo/logoInvert.png`,
-      );
-
-      logoUrlInverted = inverted.url;
+      logoUrlInverted = (
+        await uploadImageFirebase(
+          blackFile,
+          `events/${event.id}/logo/logoInvert.png`,
+        )
+      ).url;
     }
-
     const safeData = structuredClone(updateEvent.data ?? {}) as Record<
       string,
       any
@@ -900,120 +905,115 @@ export class EventService {
       coverUrl,
       logoUrl,
       logoUrlInverted,
-    };
+    } as Prisma.JsonObject;
 
     const startDate = new Date(updateEvent.startDate);
     const endDate = new Date(updateEvent.endDate);
 
-    // ================= TRANSACTION SEGURA =================
-    await this.prisma.$transaction(async (tx) => {
-      // Atualiza evento
-      await tx.event.update({
-        where: { id },
-        data: {
-          type: updateEvent.type,
-          name: updateEvent.name,
-          startDate,
-          endDate,
-          isActive: updateEvent.isActive,
-          groupLink: updateEvent.groupLink,
-          data: jsonData,
-        },
-      });
+    // ================= TRANSACTION SOMENTE PARA BANCO =================
 
-      if (!updateEvent.groupRoles?.length) return;
+    await this.prisma.event.update({
+      where: { id },
+      data: {
+        type: updateEvent.type,
+        name: updateEvent.name,
+        startDate,
+        endDate,
+        isActive: updateEvent.isActive,
+        groupLink: updateEvent.groupLink,
+        data: jsonData,
+      },
+    });
 
-      const dbGroups = new Map(event.groupRoles.map((g) => [g.id, g]));
+    if (!updateEvent.groupRoles?.length) return;
 
-      // ================= REMOVER GRUPOS =================
-      for (const dbGroup of event.groupRoles) {
-        const stillExists = updateEvent.groupRoles.some(
-          (g) => g.id === dbGroup.id,
-        );
+    const dbGroups = new Map(event.groupRoles.map((g) => [g.id, g]));
 
-        if (!stillExists) {
-          const hasUsers = dbGroup.roles.some((r) => r._count.EventOnUsers > 0);
-          if (hasUsers) {
+    const incomingGroups = new Map(
+      updateEvent.groupRoles.filter((g) => g.id).map((g) => [g.id!, g]),
+    );
+
+    // REMOVER GRUPOS AUSENTES
+    for (const group of dbGroups.values()) {
+      if (!incomingGroups.has(group.id)) {
+        const hasUsers = group.roles.some((r) => r._count.EventOnUsers > 0);
+
+        if (hasUsers) {
+          throw new BadRequestException(
+            `Group "${group.name}" has registered users and cannot be removed`,
+          );
+        }
+
+        await this.prisma.groupRoles.delete({ where: { id: group.id } });
+      }
+    }
+
+    // CRIAR / ATUALIZAR GRUPOS
+    for (const group of updateEvent.groupRoles) {
+      let groupId = group.id;
+
+      if (groupId && dbGroups.has(groupId)) {
+        await this.prisma.groupRoles.update({
+          where: { id: groupId },
+          data: {
+            name: group.name,
+            capacity: group.capacity,
+          },
+        });
+      } else {
+        const created = await this.prisma.groupRoles.create({
+          data: {
+            name: group.name,
+            capacity: group.capacity,
+            eventId: id,
+          },
+        });
+
+        groupId = created.id;
+      }
+
+      const dbRoles = dbGroups.get(groupId)?.roles ?? [];
+
+      const incomingRoles = new Map(
+        group.roles.filter((r) => r.id).map((r) => [r.id!, r]),
+      );
+
+      // REMOVER ROLES AUSENTES
+      for (const role of dbRoles) {
+        if (!incomingRoles.has(role.id)) {
+          if (role._count.EventOnUsers > 0) {
             throw new BadRequestException(
-              `Group "${dbGroup.name}" has registered users and cannot be removed`,
+              `Role "${role.description}" already has users and cannot be removed`,
             );
           }
 
-          await tx.groupRoles.delete({ where: { id: dbGroup.id } });
+          await this.prisma.rolesRegistration.delete({
+            where: { id: role.id },
+          });
         }
       }
 
-      // ================= UPSERT DE GRUPOS =================
-      const groupIdMap = new Map<string, string>();
-
-      for (const group of updateEvent.groupRoles) {
-        if (group.id) {
-          const updated = await tx.groupRoles.update({
-            where: { id: group.id },
+      // CRIAR / ATUALIZAR ROLES
+      for (const role of group.roles) {
+        if (role.id) {
+          await this.prisma.rolesRegistration.update({
+            where: { id: role.id },
             data: {
-              name: group.name,
-              capacity: group.capacity,
+              description: role.description,
+              price: role.price,
             },
           });
-
-          groupIdMap.set(group.name, updated.id);
         } else {
-          const created = await tx.groupRoles.create({
+          await this.prisma.rolesRegistration.create({
             data: {
-              name: group.name,
-              capacity: group.capacity,
-              eventId: id,
+              description: role.description,
+              price: role.price,
+              groupId,
             },
           });
-
-          groupIdMap.set(group.name, created.id);
         }
       }
-
-      // ================= ROLES =================
-      for (const group of updateEvent.groupRoles) {
-        const groupId = group.id ?? groupIdMap.get(group.name)!;
-        const dbRoles = dbGroups.get(groupId)?.roles ?? [];
-
-        // Remover roles
-        for (const dbRole of dbRoles) {
-          const stillExists = group.roles.some((r) => r.id === dbRole.id);
-
-          if (!stillExists) {
-            if (dbRole._count.EventOnUsers > 0) {
-              throw new BadRequestException(
-                `Role "${dbRole.description}" already has users and cannot be removed`,
-              );
-            }
-
-            await tx.rolesRegistration.delete({
-              where: { id: dbRole.id },
-            });
-          }
-        }
-
-        // Criar / Atualizar roles
-        for (const role of group.roles) {
-          if (role.id) {
-            await tx.rolesRegistration.update({
-              where: { id: role.id },
-              data: {
-                description: role.description,
-                price: role.price,
-              },
-            });
-          } else {
-            await tx.rolesRegistration.create({
-              data: {
-                description: role.description,
-                price: role.price,
-                groupId,
-              },
-            });
-          }
-        }
-      }
-    });
+    }
 
     return this.findOneClear(id);
   }
