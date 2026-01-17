@@ -51,7 +51,7 @@ export class EventService {
       movingFromWaitlist?: boolean;
     },
   ) {
-    const MAX_RETRIES = 2;
+    const MAX_RETRIES = 5;
     const tx = options?.tx;
     const attempt = options?.attempt ?? 1;
 
@@ -71,7 +71,7 @@ export class EventService {
                 eventId,
                 registrationRoleIds,
               ),
-            { isolationLevel: 'Serializable' },
+            { isolationLevel: 'Serializable', maxWait: 10000, timeout: 30000 },
           );
 
       if (
