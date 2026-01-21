@@ -17,7 +17,7 @@ export class PagbankClient {
 
     // Interceptor para sempre injetar o token corretamente
     this.http.interceptors.request.use((config) => {
-      config.headers.Authorization = `Bearer ${process.env.TOKEN_API_PAG_BANCK?.trim()}`;
+      config.headers.Authorization = `Bearer ${process.env.TOKEN_API_PAG_BANK?.trim()}`;
       return config;
     });
   }
@@ -27,6 +27,7 @@ export class PagbankClient {
       const response = await this.http.post('/checkouts', payload);
       return response.data;
     } catch (err: any) {
+      console.log(err);
       throw new HttpException(
         err.response?.data || 'Erro PagBank',
         err.response?.status || 500,
