@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -23,6 +24,8 @@ export class PaymentService {
     private readonly prisma: PrismaService,
     private readonly pagbankService: PagbankService,
   ) {}
+
+  private readonly logger = new Logger(PaymentService.name);
 
   private extrairDddENumero(telefone: string) {
     // Remove tudo que não for número
@@ -430,7 +433,7 @@ export class PaymentService {
       //invalidar checkouts antigos na api (assíncrono)
       for (const checkoutId of prepared.checkoutIdsToInvalidate) {
         this.pagbankService.inactivateCheckout(checkoutId).catch((err) => {
-          console.log(
+          this.logger.error(
             `Erro ao inativar checkout ${checkoutId} na PagBank:`,
             JSON.stringify(err),
           );
