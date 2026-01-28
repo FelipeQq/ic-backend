@@ -213,6 +213,19 @@ model TeamOnUsers {
   @@id([userId, teamId])
 }
 
+model Log {
+  id        String   @id @default(uuid())
+  model     String   // nome da tabela (ex: User, Order, Map)
+  action    String   // create | update | delete
+  entityId  String?  // id do registro afetado
+  before    Json?    // estado anterior
+  after     Json?    // estado posterior
+  userId    String?  // se quiser relacionar ao usuário
+  createdAt DateTime @default(now())
+
+  @@map("logs")
+}
+
 enum TeamRole {
   MEMBER
   LEADER
