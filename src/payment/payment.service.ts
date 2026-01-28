@@ -304,8 +304,12 @@ export class PaymentService {
                 },
               },
             });
+            // verifica se esse checkout já esta a mais de 1h aberto, se tiver, não reutiliza
+            const checkoutCreatedAt =
+              activeCheckouts[0].createdAt || new Date();
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-            if (usedByOthers.length === 0) {
+            if (usedByOthers.length === 0 && checkoutCreatedAt > oneHourAgo) {
               //mudar o payment para WAITING
               await tx.payment.updateMany({
                 where: {
@@ -361,8 +365,8 @@ export class PaymentService {
           notification_urls: [
             `${process.env.URL_BACKEND}/webhooks/pagbank/checkouts`,
           ],
-          redirect_url: `${process.env.URL_FRONTEND}/events/${eventId}/checkout/success`,
-          return_url: `${process.env.URL_FRONTEND}/events/${eventId}/checkout/return`,
+          redirect_url: `${process.env.URL_FRONTEND}/events/${eventId}`,
+          return_url: `${process.env.URL_FRONTEND}/events/${eventId}`,
           customer_modifiable: false,
           customer: {
             name: user.fullName,
