@@ -5,7 +5,6 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { initializeFirebase } from './firebase.config';
 import { json, urlencoded } from 'express';
-import { RequestContextInterceptor } from './middleware/request-context.middleware';
 
 dotenv.config();
 initializeFirebase();
@@ -39,7 +38,6 @@ async function bootstrap() {
     }),
   );
 
-  //app.useGlobalInterceptors(new RequestContextInterceptor());
   await app.listen(port);
 }
 bootstrap();

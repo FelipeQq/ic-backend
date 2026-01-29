@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'async_hooks';
 
 export interface RequestContext {
-  userId?: string;
+  userId?: string | null;
 }
 
 export const requestContext = new AsyncLocalStorage<RequestContext>();
@@ -11,5 +11,5 @@ export function getRequestContext(): RequestContext {
 }
 
 export function getCurrentUserId(): string | undefined {
-  return getRequestContext().userId;
+  return getRequestContext().userId ?? undefined;
 }
