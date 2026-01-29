@@ -39,7 +39,7 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalInterceptors(new RequestContextInterceptor());
+  //app.useGlobalInterceptors(new RequestContextInterceptor());
   await app.listen(port);
 }
 bootstrap();
