@@ -32,6 +32,7 @@ export class AuthController {
       loginDto.document,
       loginDto.password,
     );
+    console.log('Authenticated user:', user);
 
     return this.authService.login(user);
   }
