@@ -54,6 +54,7 @@ export class AuthService {
       sub: user.id,
       role: user.role,
     };
+    console.log('User:', user);
     return {
       access_token: this.jwtService.sign(payload),
       user,
