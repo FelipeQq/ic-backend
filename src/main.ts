@@ -15,6 +15,7 @@ async function bootstrap() {
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ extended: true, limit: '50mb' }));
   const port = process.env.PORT;
+  const host = '0.0.0.0';
   app.enableCors({
     origin: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
@@ -40,6 +41,6 @@ async function bootstrap() {
   );
 
   app.useGlobalInterceptors(new RequestContextInterceptor());
-  await app.listen(port);
+  await app.listen(port, host);
 }
 bootstrap();
