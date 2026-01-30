@@ -248,165 +248,173 @@ export class PaymentService {
       // FASE 1 — Somente leitura e preparação
       // ============================
 
-      const prepared = await this.prisma.$transaction(async (tx) => {
-        if (roleRegistrationId.length === 0) {
-          throw new BadRequestException('No role registrations provided');
-        }
-
-        const event = await tx.event.findUnique({ where: { id: eventId } });
-        if (!event) throw new NotFoundException('Event not found');
-
-        const user = await tx.user.findUnique({ where: { id: userId } });
-        if (!user) throw new NotFoundException('User not found');
-
-        const payments = await tx.payment.findMany({
-          where: {
-            userId,
-            eventId,
-            roleRegistrationId: { in: roleRegistrationId },
-          },
-          include: {
-            checkouts: true,
-            eventUserRole: { select: { role: true, discount: true } },
-          },
-        });
-
-        if (!payments.length) {
-          throw new NotFoundException('No registrations found for payment');
-        }
-
-        const unpaidPayments = payments.filter(
-          (p) => p.status !== PaymentStatus.PAID,
-        );
-        // nao deve voltar como erro
-        if (!unpaidPayments.length) {
-          throw new BadRequestException('Some registrations are already paid');
-        }
-
-        // ---------- regra de reutilização ----------
-        const activeCheckouts = unpaidPayments
-          .flatMap((p) => p.checkouts)
-          .filter((c) => c.status === CheckoutStatus.ACTIVE);
-
-        const allHaveActive = unpaidPayments.every((p) =>
-          p.checkouts?.some((c) => c.status === CheckoutStatus.ACTIVE),
-        );
-
-        if (allHaveActive && activeCheckouts.length > 0) {
-          const uniqueIds = new Set(activeCheckouts.map((c) => c.checkoutId));
-
-          if (uniqueIds.size === 1) {
-            const checkoutId = [...uniqueIds][0];
-
-            const usedByOthers = await tx.paymentCheckout.findMany({
-              where: {
-                checkoutId,
-                status: CheckoutStatus.ACTIVE,
-                payment: {
-                  NOT: { id: { in: unpaidPayments.map((p) => p.id) } },
-                },
-              },
-            });
-            // verifica se esse checkout já esta a mais de 1h aberto, se tiver, não reutiliza
-            const checkoutCreatedAt =
-              activeCheckouts[0].createdAt || new Date();
-            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-
-            if (usedByOthers.length === 0 && checkoutCreatedAt > oneHourAgo) {
-              //mudar o payment para WAITING
-              await tx.payment.updateMany({
-                where: {
-                  id: { in: unpaidPayments.map((p) => p.id) },
-                },
-                data: {
-                  status: PaymentStatus.WAITING,
-                  method: PaymentMethod.OTHER,
-                },
-              });
-              return {
-                reuse: true,
-                link: activeCheckouts[0].link,
-              };
-            }
+      const prepared = await this.prisma.$transaction(
+        async (tx) => {
+          if (roleRegistrationId.length === 0) {
+            throw new BadRequestException('No role registrations provided');
           }
-        }
 
-        // ---------- prepara dados para novo checkout ----------
-        const tickets = unpaidPayments.map((p) => {
-          const role = p.eventUserRole?.role;
-          return {
-            id: role?.id ?? 'unknown',
-            description: role?.description ?? 'Ingresso',
-            price: role?.price ?? 0,
-          };
-        });
-        // DESCONTO
-        const totalDiscount = unpaidPayments.reduce((acc, payment) => {
-          const discount = payment.eventUserRole?.discount;
-          if (discount) {
-            return (
-              acc +
-              discount.percentage * (payment.eventUserRole?.role?.price || 0)
+          const event = await tx.event.findUnique({ where: { id: eventId } });
+          if (!event) throw new NotFoundException('Event not found');
+
+          const user = await tx.user.findUnique({ where: { id: userId } });
+          if (!user) throw new NotFoundException('User not found');
+
+          const payments = await tx.payment.findMany({
+            where: {
+              userId,
+              eventId,
+              roleRegistrationId: { in: roleRegistrationId },
+            },
+            include: {
+              checkouts: true,
+              eventUserRole: { select: { role: true, discount: true } },
+            },
+          });
+
+          if (!payments.length) {
+            throw new NotFoundException('No registrations found for payment');
+          }
+
+          const unpaidPayments = payments.filter(
+            (p) => p.status !== PaymentStatus.PAID,
+          );
+          // nao deve voltar como erro
+          if (!unpaidPayments.length) {
+            throw new BadRequestException(
+              'Some registrations are already paid',
             );
           }
-          return acc;
-        }, 0);
 
-        if (!tickets.length) {
-          throw new BadRequestException('No tickets found for payment');
-        }
+          // ---------- regra de reutilização ----------
+          const activeCheckouts = unpaidPayments
+            .flatMap((p) => p.checkouts)
+            .filter((c) => c.status === CheckoutStatus.ACTIVE);
 
-        const { ddd, numero } = this.extrairDddENumero(user.cellphone);
-        const dateExpiration = new Date(Date.now() + 1 * 60 * 60 * 1000); //1h
-        const payload: CreatePagbankCheckoutDto = {
-          reference_id: randomUUID(),
-          soft_descriptor: 'Igreja de cristo',
-          expiration_date: dateExpiration.toISOString(),
-          payment_notification_urls: [
-            `${process.env.URL_BACKEND}/webhooks/pagbank/payments`,
-          ],
-          notification_urls: [
-            `${process.env.URL_BACKEND}/webhooks/pagbank/checkouts`,
-          ],
-          redirect_url: `${process.env.URL_FRONTEND}/events/${eventId}`,
-          return_url: `${process.env.URL_FRONTEND}/events/${eventId}`,
-          customer_modifiable: false,
-          customer: {
-            name: user.fullName,
-            email: user.email,
-            tax_id: user.cpf,
-            phone: { country: '55', area: ddd, number: numero },
-          },
-          discount_amount: totalDiscount * 100,
-          items: tickets
-            .filter((t) => t.price > 0)
-            .map((t) => ({
-              reference_id: t.id,
-              description: t.description,
-              name: `Ingresso ${event.name} - ${t.description}`,
-              quantity: 1,
-              unit_amount: t.price * 100,
-            })),
-          payment_methods: [
-            { type: 'CREDIT_CARD' },
-            { type: 'DEBIT_CARD' },
-            { type: 'BOLETO' },
-            { type: 'PIX' },
-          ],
-        };
+          const allHaveActive = unpaidPayments.every((p) =>
+            p.checkouts?.some((c) => c.status === CheckoutStatus.ACTIVE),
+          );
 
-        const checkoutIdsToInvalidate = [
-          ...new Set(activeCheckouts.map((c) => c.checkoutId)),
-        ];
+          if (allHaveActive && activeCheckouts.length > 0) {
+            const uniqueIds = new Set(activeCheckouts.map((c) => c.checkoutId));
 
-        return {
-          reuse: false,
-          payload,
-          unpaidPayments,
-          tickets,
-          checkoutIdsToInvalidate,
-        };
-      });
+            if (uniqueIds.size === 1) {
+              const checkoutId = [...uniqueIds][0];
+
+              const usedByOthers = await tx.paymentCheckout.findMany({
+                where: {
+                  checkoutId,
+                  status: CheckoutStatus.ACTIVE,
+                  payment: {
+                    NOT: { id: { in: unpaidPayments.map((p) => p.id) } },
+                  },
+                },
+              });
+              // verifica se esse checkout já esta a mais de 1h aberto, se tiver, não reutiliza
+              const checkoutCreatedAt =
+                activeCheckouts[0].createdAt || new Date();
+              const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+              if (usedByOthers.length === 0 && checkoutCreatedAt > oneHourAgo) {
+                //mudar o payment para WAITING
+                await tx.payment.updateMany({
+                  where: {
+                    id: { in: unpaidPayments.map((p) => p.id) },
+                  },
+                  data: {
+                    status: PaymentStatus.WAITING,
+                    method: PaymentMethod.OTHER,
+                  },
+                });
+                return {
+                  reuse: true,
+                  link: activeCheckouts[0].link,
+                };
+              }
+            }
+          }
+
+          // ---------- prepara dados para novo checkout ----------
+          const tickets = unpaidPayments.map((p) => {
+            const role = p.eventUserRole?.role;
+            return {
+              id: role?.id ?? 'unknown',
+              description: role?.description ?? 'Ingresso',
+              price: role?.price ?? 0,
+            };
+          });
+          // DESCONTO
+          const totalDiscount = unpaidPayments.reduce((acc, payment) => {
+            const discount = payment.eventUserRole?.discount;
+            if (discount) {
+              return (
+                acc +
+                discount.percentage * (payment.eventUserRole?.role?.price || 0)
+              );
+            }
+            return acc;
+          }, 0);
+
+          if (!tickets.length) {
+            throw new BadRequestException('No tickets found for payment');
+          }
+
+          const { ddd, numero } = this.extrairDddENumero(user.cellphone);
+          const dateExpiration = new Date(Date.now() + 1 * 60 * 60 * 1000); //1h
+          const payload: CreatePagbankCheckoutDto = {
+            reference_id: randomUUID(),
+            soft_descriptor: 'Igreja de cristo',
+            expiration_date: dateExpiration.toISOString(),
+            payment_notification_urls: [
+              `${process.env.URL_BACKEND}/webhooks/pagbank/payments`,
+            ],
+            notification_urls: [
+              `${process.env.URL_BACKEND}/webhooks/pagbank/checkouts`,
+            ],
+            redirect_url: `${process.env.URL_FRONTEND}/events/${eventId}`,
+            return_url: `${process.env.URL_FRONTEND}/events/${eventId}`,
+            customer_modifiable: false,
+            customer: {
+              name: user.fullName,
+              email: user.email,
+              tax_id: user.cpf,
+              phone: { country: '55', area: ddd, number: numero },
+            },
+            discount_amount: totalDiscount * 100,
+            items: tickets
+              .filter((t) => t.price > 0)
+              .map((t) => ({
+                reference_id: t.id,
+                description: t.description,
+                name: `Ingresso ${event.name} - ${t.description}`,
+                quantity: 1,
+                unit_amount: t.price * 100,
+              })),
+            payment_methods: [
+              { type: 'CREDIT_CARD' },
+              { type: 'DEBIT_CARD' },
+              { type: 'BOLETO' },
+              { type: 'PIX' },
+            ],
+          };
+
+          const checkoutIdsToInvalidate = [
+            ...new Set(activeCheckouts.map((c) => c.checkoutId)),
+          ];
+
+          return {
+            reuse: false,
+            payload,
+            unpaidPayments,
+            tickets,
+            checkoutIdsToInvalidate,
+          };
+        },
+        {
+          timeout: 20000, // 20 segundos
+          maxWait: 5000, // tempo máximo esperando conexão
+        },
+      );
 
       // ============================
       // Reutilização imediata
@@ -442,37 +450,46 @@ export class PaymentService {
       // ============================
       // FASE 3 — Agora sim: grava tudo de uma vez
       // ============================
-      await this.prisma.$transaction(async (tx) => {
-        // 1. Inativa todos os checkouts antigos envolvidos
-        if (prepared.checkoutIdsToInvalidate.length > 0) {
-          await tx.paymentCheckout.updateMany({
-            where: {
-              checkoutId: { in: prepared.checkoutIdsToInvalidate },
-              status: CheckoutStatus.ACTIVE,
-            },
-            data: { status: CheckoutStatus.INACTIVE },
-          });
-        }
+      await this.prisma.$transaction(
+        async (tx) => {
+          // 1. Inativa todos os checkouts antigos envolvidos
+          if (prepared.checkoutIdsToInvalidate.length > 0) {
+            await tx.paymentCheckout.updateMany({
+              where: {
+                checkoutId: { in: prepared.checkoutIdsToInvalidate },
+                status: CheckoutStatus.ACTIVE,
+              },
+              data: { status: CheckoutStatus.INACTIVE },
+            });
+          }
 
-        // 2. Cria os novos vínculos
-        await tx.paymentCheckout.createMany({
-          data: prepared.unpaidPayments.map((payment) => ({
-            paymentId: payment.id,
-            checkoutId: result.id,
-            link: linkPay,
-            referenceId: prepared.payload.reference_id,
-            status: CheckoutStatus.ACTIVE,
-            amount: prepared.tickets.reduce((sum, t) => sum + t.price, 0),
-          })),
-        });
-        //mudar os status dos pagamentos para WAITING
-        await tx.payment.updateMany({
-          where: {
-            id: { in: prepared.unpaidPayments.map((p) => p.id) },
-          },
-          data: { status: PaymentStatus.WAITING, method: PaymentMethod.OTHER },
-        });
-      });
+          // 2. Cria os novos vínculos
+          await tx.paymentCheckout.createMany({
+            data: prepared.unpaidPayments.map((payment) => ({
+              paymentId: payment.id,
+              checkoutId: result.id,
+              link: linkPay,
+              referenceId: prepared.payload.reference_id,
+              status: CheckoutStatus.ACTIVE,
+              amount: prepared.tickets.reduce((sum, t) => sum + t.price, 0),
+            })),
+          });
+          //mudar os status dos pagamentos para WAITING
+          await tx.payment.updateMany({
+            where: {
+              id: { in: prepared.unpaidPayments.map((p) => p.id) },
+            },
+            data: {
+              status: PaymentStatus.WAITING,
+              method: PaymentMethod.OTHER,
+            },
+          });
+        },
+        {
+          timeout: 20000, // 20 segundos
+          maxWait: 5000, // tempo máximo esperando conexão
+        },
+      );
 
       return { message: 'checkout created', link: linkPay };
     } catch (error) {
