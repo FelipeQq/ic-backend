@@ -72,6 +72,8 @@ export class CronService {
           );
           continue;
         }
+        const method = chargeMaisRecente.payment_method.type || null;
+        const payload = chargeMaisRecente;
 
         // 3. Atualiza o status no banco em payments e checkouts
         await this.prisma.$transaction(async (tx) => {
@@ -83,6 +85,8 @@ export class CronService {
             },
             data: {
               status: pagbankStatus,
+              method,
+              payload: payload as any,
             },
           });
           if (pagbankStatus === PaymentStatus.PAID) {
