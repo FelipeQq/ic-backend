@@ -269,7 +269,7 @@ export class PaymentService {
           { type: 'CREDIT_CARD' },
           { type: 'DEBIT_CARD' },
           { type: 'BOLETO' },
-          { type: 'PIX' },
+          // { type: 'PIX' },
         ],
       };
 
