@@ -201,6 +201,7 @@ export class EventService {
 
       if (role.group.capacity !== null && count >= role.group.capacity) {
         // caso esteja cheio, coloca na waitlist
+
         const waitlist = await tx.waitlist.create({
           data: {
             userId,
@@ -1168,9 +1169,13 @@ export class EventService {
   }
   async movedUserFromWaitlistToEvent(
     userId: string,
+    userRemovedId: string,
     eventId: string,
     roleRegistrationId: string,
   ) {
+    if (!userRemovedId || !userId) {
+      throw new BadRequestException('User IDs must be provided!');
+    }
     return await this.prisma.$transaction(
       async (tx) => {
         const waitlistEntry = await tx.waitlist.findFirst({
@@ -1183,6 +1188,25 @@ export class EventService {
 
         await tx.waitlist.delete({
           where: { id: waitlistEntry.id },
+        });
+
+        // remover o usuario a qual será substituido na inscrição do evento
+        await tx.eventOnUsersRolesRegistration.delete({
+          where: {
+            userId_eventId_roleRegistrationId: {
+              userId: userRemovedId,
+              eventId,
+              roleRegistrationId,
+            },
+          },
+        });
+        //verifica se onevents tem agum role registrado para o usuario removido, se não tiver, remove a relação do usuario com o evento
+        await tx.eventOnUsers.deleteMany({
+          where: {
+            userId: userRemovedId,
+            eventId,
+            rolesRegistration: { none: {} },
+          },
         });
 
         const registration = await this.registerUserInEvent(

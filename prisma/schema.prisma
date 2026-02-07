@@ -165,7 +165,7 @@ model Waitlist {
   rolesRegistration  RolesRegistration? @relation(fields: [roleRegistrationId], references: [id])
   user               User               @relation(fields: [userId], references: [id])
 
-  @@unique([userId, eventId])
+  @@unique([userId, eventId, roleRegistrationId])
   @@map("waitlist")
 }
 
