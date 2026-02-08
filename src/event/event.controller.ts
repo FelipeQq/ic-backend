@@ -196,4 +196,19 @@ export class EventController {
       body.roleRegistrationId,
     );
   }
+  //remove o usuario do waitlist
+  @ApiOperation({ summary: 'Remove user from waitlist' })
+  @UseGuards(JwtAuthGuard)
+  @Delete(':idEvent/waitlist/users/:idUser/rule/:roleRegistrationId')
+  removeUserFromEventWaitlist(
+    @Param('idEvent') idEvent: string,
+    @Param('idUser') idUser: string,
+    @Param('roleRegistrationId') roleRegistrationId: string,
+  ) {
+    return this.eventService.removeUserFromEventWaitlist(
+      idUser,
+      idEvent,
+      roleRegistrationId,
+    );
+  }
 }

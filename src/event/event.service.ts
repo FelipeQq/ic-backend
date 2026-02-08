@@ -1190,13 +1190,22 @@ export class EventService {
           where: { id: waitlistEntry.id },
         });
 
-        // remover o usuario a qual será substituido na inscrição do evento
-        await tx.eventOnUsersRolesRegistration.delete({
+        // obter o grupo do rule
+        const roleRegistration = await tx.rolesRegistration.findUnique({
+          where: { id: roleRegistrationId },
+          include: { group: true },
+        });
+
+        if (!roleRegistration) {
+          throw new NotFoundException('Role registration not found!');
+        }
+        // remover  regitro do usuario removido para o mesmo grupo da role que vai ser registrada para o usuario da waitlist
+        await tx.eventOnUsersRolesRegistration.deleteMany({
           where: {
-            userId_eventId_roleRegistrationId: {
-              userId: userRemovedId,
-              eventId,
-              roleRegistrationId,
+            userId: userRemovedId,
+            eventId,
+            role: {
+              groupId: roleRegistration.groupId,
             },
           },
         });
@@ -1226,5 +1235,37 @@ export class EventService {
       },
       { isolationLevel: 'Serializable' },
     );
+  }
+  async removeUserFromEventWaitlist(
+    idUser: string,
+    idEvent: string,
+    roleRegistrationId: string,
+  ) {
+    const waitlistEntries = await this.prisma.waitlist.findUnique({
+      where: {
+        userId_eventId_roleRegistrationId: {
+          userId: idUser,
+          eventId: idEvent,
+          roleRegistrationId: roleRegistrationId,
+        },
+      },
+    });
+
+    if (!waitlistEntries) {
+      throw new NotFoundException(
+        'No waitlist entries found for this user in the event!',
+      );
+    }
+
+    const response = await this.prisma.waitlist.delete({
+      where: {
+        userId_eventId_roleRegistrationId: {
+          userId: idUser,
+          eventId: idEvent,
+          roleRegistrationId: roleRegistrationId,
+        },
+      },
+    });
+    return response;
   }
 }
