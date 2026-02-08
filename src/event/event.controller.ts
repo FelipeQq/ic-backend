@@ -79,10 +79,17 @@ export class EventController {
   @UseGuards(JwtAuthGuard)
   @Put(':id')
   @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'logoFile', maxCount: 1 },
-      { name: 'coverFile', maxCount: 1 },
-    ]),
+    FileFieldsInterceptor(
+      [
+        { name: 'logoFile', maxCount: 1 },
+        { name: 'coverFile', maxCount: 1 },
+      ],
+      {
+        limits: {
+          fieldSize: 100 * 1024 * 1024, // Limite de tamanho do arquivo para 50MB
+        },
+      },
+    ),
   )
   @ApiConsumes('multipart/form-data')
   update(
