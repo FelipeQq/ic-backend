@@ -361,32 +361,38 @@ export class PaymentService {
     payload: any,
   ) {
     try {
-      await this.prisma.$transaction(async (tx) => {
-        const paymentCheckout = await tx.paymentCheckout.findMany({
-          where: { referenceId },
-          include: { payment: true },
-        });
-        if (!paymentCheckout || paymentCheckout.length === 0) {
-          throw new NotFoundException('Payment not found');
-        }
-        if (paymentCheckout[0].payment.status === PaymentStatus.PAID) {
-          return; // idempotência
-        }
-        // marcar como recebido
-        await this.prisma.payment.updateMany({
-          where: { id: { in: paymentCheckout.map((pc) => pc.payment.id) } },
-          data: {
-            method,
-            status,
-            payload,
-          },
-        });
-        // inativar checkouts
-        await this.prisma.paymentCheckout.updateMany({
-          where: { referenceId },
-          data: { status: CheckoutStatus.INACTIVE },
-        });
-      });
+      await this.prisma.$transaction(
+        async (tx) => {
+          const paymentCheckout = await tx.paymentCheckout.findMany({
+            where: { referenceId },
+            include: { payment: true },
+          });
+          if (!paymentCheckout || paymentCheckout.length === 0) {
+            throw new NotFoundException('Payment not found');
+          }
+          if (paymentCheckout[0].payment.status === PaymentStatus.PAID) {
+            return; // idempotência
+          }
+          // marcar como recebido
+          await this.prisma.payment.updateMany({
+            where: { id: { in: paymentCheckout.map((pc) => pc.payment.id) } },
+            data: {
+              method,
+              status,
+              payload,
+            },
+          });
+          // inativar checkouts
+          await this.prisma.paymentCheckout.updateMany({
+            where: { referenceId },
+            data: { status: CheckoutStatus.INACTIVE },
+          });
+        },
+        {
+          timeout: 20000, // 20 segundos
+          maxWait: 10000, // tempo máximo esperando conexão
+        },
+      );
       return { message: 'Webhook de pagamento atualizado com sucesso' };
     } catch (error) {
       console.log('Erro ao atualizar webhook de pagamento:', error);
