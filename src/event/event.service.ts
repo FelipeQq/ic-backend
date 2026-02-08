@@ -1233,7 +1233,7 @@ export class EventService {
 
         return registration;
       },
-      { isolationLevel: 'Serializable' },
+      { isolationLevel: 'Serializable', maxWait: 10000, timeout: 60000 },
     );
   }
   async removeUserFromEventWaitlist(
