@@ -117,12 +117,17 @@ export class EventController {
 
   @ApiOperation({ summary: 'Remove user to event' })
   @UseGuards(JwtAuthGuard)
-  @Delete(':idEvent/users/:idUser')
+  @Delete(':idEvent/users/:idUser/rule/:roleRegistrationId')
   removeUserFromEvent(
     @Param('idEvent') idEvent: string,
     @Param('idUser') idUser: string,
+    @Param('roleRegistrationId') roleRegistrationId: string,
   ) {
-    return this.eventService.removeUserFromEvent(idUser, idEvent);
+    return this.eventService.removeUserFromEvent(
+      idUser,
+      idEvent,
+      roleRegistrationId,
+    );
   }
 
   @ApiOperation({ summary: 'Edit user in event' })

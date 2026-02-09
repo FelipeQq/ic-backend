@@ -1008,7 +1008,7 @@ export class EventService {
     return this.findOneClear(id);
   }
 
-  async removeUserFromEvent(idUser: string, idEvent: string) {
+  async removeUserFromEvent(idUser: string, idEvent: string, roleRegistrationId: string) {
     try {
       const userExists = await this.prisma.user.findUnique({
         where: {
@@ -1029,8 +1029,33 @@ export class EventService {
       if (!eventExists) {
         throw new NotFoundException('Event does not exists!');
       }
+      const registrationExists = await this.prisma.eventOnUsersRolesRegistration.findFirst({
+        where: {
+          userId: idUser,
+          eventId: idEvent,
+          roleRegistrationId,
+        },
+      });
 
-      await this.removeRelation(idUser, idEvent);
+      if (!registrationExists) {
+        throw new NotFoundException('Registration does not exists!');
+      }
+
+      await this.prisma.eventOnUsersRolesRegistration.deleteMany({
+        where: {
+          userId: idUser,
+          eventId: idEvent,
+          roleRegistrationId,
+        },
+      });
+      //verifica se onevents tem agum role registrado para o usuario, se não tiver, remove a relação do usuario com o evento
+      await this.prisma.eventOnUsers.deleteMany({
+        where: {
+          userId: idUser,
+          eventId: idEvent,
+          rolesRegistration: { none: {} },
+        },
+      });
       return { message: 'User removed from event successfully' };
     } catch (error) {
       throw new InternalServerErrorException(error.message);

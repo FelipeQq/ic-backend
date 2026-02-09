@@ -11,12 +11,13 @@ import {
 import { AuthService } from './auth.service';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/decorators/auth.guard';
+import { Logger } from '@nestjs/common';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
   constructor(private readonly authService: AuthService) {}
-
   @Post('login')
   @ApiBody({
     schema: {
@@ -32,7 +33,9 @@ export class AuthController {
       loginDto.document,
       loginDto.password,
     );
-    console.log('Authenticated user:', user);
+    this.logger.debug(
+      `User ${user.id} - ${user.fullName} logged in successfully`,
+    );
 
     return this.authService.login(user);
   }
