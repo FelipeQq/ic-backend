@@ -36,14 +36,17 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       const delegate = (this as any)[
         model.charAt(0).toLowerCase() + model.slice(1)
       ];
+
       const userId = requestContext.getStore()?.userId ?? null;
 
       let before: any = null;
       let after: any = null;
       let entityId: string | null = null;
 
+      const createdWheres: any[] = [];
+
       // ==========================
-      // 1. CAPTURA BEFORE
+      // 1. BEFORE
       // ==========================
       if (['update', 'delete'].includes(params.action)) {
         before = await delegate.findUnique({
@@ -58,76 +61,93 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       }
 
       // ==========================
-      // 2. CREATE MANY → injeta IDs
+      // 2. CREATE MANY → tratar id simples ou composto
       // ==========================
-      let createdIds: string[] = [];
-
       if (params.action === 'createMany' && Array.isArray(params.args.data)) {
-        params.args.data = params.args.data.map((item) => {
-          const id = item.id ?? randomUUID();
-          createdIds.push(id);
-          return { ...item, id };
+        params.args.data = params.args.data.map((item: any) => {
+          // Se tiver id simples
+          if ('id' in item) {
+            const id = item.id ?? randomUUID();
+            createdWheres.push({ id });
+            return { ...item, id };
+          }
+
+          // Caso NÃO tenha id (chave composta)
+          // Usa todos os campos enviados como identificador
+          createdWheres.push({ ...item });
+
+          return item;
         });
       }
 
       // ==========================
-      // 3. EXECUTA A OPERAÇÃO
+      // 3. EXECUTA
       // ==========================
       let result;
       try {
         result = await next(params);
-      } catch (err) {
+      } catch (err: any) {
         this.logger.error(`Erro em ${model}.${params.action}: ${err.message}`);
         throw err;
       }
 
       // ==========================
-      // 4. CAPTURA AFTER
+      // 4. AFTER
       // ==========================
+
       if (params.action === 'create') {
         after = result;
-        entityId = result?.id ?? null;
+        entityId = result?.id ?? JSON.stringify(params.args.data);
       }
 
       if (params.action === 'update') {
         after = await delegate.findUnique({
           where: params.args.where,
         });
-        entityId = after?.id ?? null;
+        entityId = after?.id ?? JSON.stringify(params.args.where);
       }
 
       if (params.action === 'delete') {
         after = null;
-        entityId = before?.id ?? null;
+        entityId = before?.id ?? JSON.stringify(params.args.where);
       }
 
       if (params.action === 'createMany') {
-        after = await delegate.findMany({
-          where: { id: { in: createdIds } },
-        });
-        entityId = createdIds[0] ?? null;
+        if (createdWheres.length > 0) {
+          after = await delegate.findMany({
+            where: {
+              OR: createdWheres,
+            },
+          });
+        }
+
+        entityId = after?.[0]?.id ?? JSON.stringify(createdWheres[0] ?? null);
       }
 
       if (params.action === 'updateMany') {
-        const ids = before?.map((r) => r.id) ?? [];
-        after = await delegate.findMany({
-          where: { id: { in: ids } },
-        });
-        entityId = ids[0] ?? null;
+        const ids = before?.map((r: any) => r.id).filter(Boolean) ?? [];
+
+        if (ids.length > 0) {
+          after = await delegate.findMany({
+            where: { id: { in: ids } },
+          });
+        }
+
+        entityId = ids[0] ?? JSON.stringify(params.args.where);
       }
 
       if (params.action === 'deleteMany') {
         after = null;
-        entityId = before?.[0]?.id ?? null;
+        entityId = before?.[0]?.id ?? JSON.stringify(params.args.where);
       }
 
       if (params.action === 'upsert') {
         after = result;
-        entityId = result?.id ?? null;
+        entityId = result?.id ?? JSON.stringify(params.args.where);
       }
 
       // ==========================
-      // 5. SALVA LOG
+      // 5. LOG
       // ==========================
       await this.log.create({
         data: {
@@ -149,7 +169,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       return result;
     });
   }
-  //-
+
   async enableShutdownHooks(app: INestApplication) {
     this.$on('beforeExit', async () => {
       await app.close();
