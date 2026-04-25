@@ -522,9 +522,41 @@ export class EventService {
       };
     });
   }
-  private handlerReturnEvent(event: EventWithGroupRole) {
+  private async getLogoImgFromUrl(logoUrl?: string): Promise<string | null> {
+    if (!logoUrl) return null;
+
+    try {
+      const response = await fetch(logoUrl);
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const contentType = response.headers.get('content-type') ?? 'image/png';
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      return `data:${contentType};base64,${buffer.toString('base64')}`;
+    } catch {
+      return null;
+    }
+  }
+
+  private async handlerReturnEvent(event: EventWithGroupRole) {
+    const eventData = (event.data ?? {}) as Record<string, any>;
+    const logoUrl =
+      typeof eventData.logoUrl === 'string' ? eventData.logoUrl : undefined;
+    const coverUrl =
+      typeof eventData.coverUrl === 'string' ? eventData.coverUrl : undefined;
+    const logoBase64 = await this.getLogoImgFromUrl(logoUrl);
+    const coverBase64 = await this.getLogoImgFromUrl(coverUrl);
+
     return {
       ...event,
+      data: {
+        ...eventData,
+        logoBase64,
+        coverBase64,
+      },
       groupRoles: event.groupRoles.map((group) => ({
         ...group,
         roles: group.roles.map((role) => {
@@ -789,8 +821,8 @@ export class EventService {
   }
 
   async findOne(id: string) {
-    const event = await this.prisma.event
-      .findUnique({
+    try {
+      const event = await this.prisma.event.findUnique({
         where: { id },
         include: {
           groupRoles: {
@@ -803,13 +835,16 @@ export class EventService {
             },
           },
         },
-      })
-      .then((event) => this.handlerReturnEvent(event));
-    if (!event) {
-      throw new NotFoundException('Event does not exist');
+      });
+
+      if (!event) {
+        throw new NotFoundException('Event does not exist');
+      }
+
+      return this.handlerReturnEvent(event);
+    } catch (error) {
+      throw error;
     }
-    return event;
-    //.then((event) => this.handlerReturnEvent(event));
   }
   async findOneClear(id: string) {
     return await this.prisma.event.findFirst({
@@ -1008,7 +1043,11 @@ export class EventService {
     return this.findOneClear(id);
   }
 
-  async removeUserFromEvent(idUser: string, idEvent: string, roleRegistrationId: string) {
+  async removeUserFromEvent(
+    idUser: string,
+    idEvent: string,
+    roleRegistrationId: string,
+  ) {
     try {
       const userExists = await this.prisma.user.findUnique({
         where: {
@@ -1029,13 +1068,14 @@ export class EventService {
       if (!eventExists) {
         throw new NotFoundException('Event does not exists!');
       }
-      const registrationExists = await this.prisma.eventOnUsersRolesRegistration.findFirst({
-        where: {
-          userId: idUser,
-          eventId: idEvent,
-          roleRegistrationId,
-        },
-      });
+      const registrationExists =
+        await this.prisma.eventOnUsersRolesRegistration.findFirst({
+          where: {
+            userId: idUser,
+            eventId: idEvent,
+            roleRegistrationId,
+          },
+        });
 
       if (!registrationExists) {
         throw new NotFoundException('Registration does not exists!');
