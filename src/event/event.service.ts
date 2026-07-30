@@ -1137,6 +1137,7 @@ export class EventService {
     return this.prisma.eventOnUsers
       .findMany({
         where: { eventId },
+        orderBy: { createdAt: 'asc' },
 
         include: {
           user: {
@@ -1185,6 +1186,7 @@ export class EventService {
         where: {
           eventId: idEvent,
         },
+        orderBy: { createdAt: 'asc' },
         include: {
           user: {
             select: {
