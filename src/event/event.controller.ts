@@ -7,6 +7,7 @@ import {
   Delete,
   Put,
   Query,
+  Req,
   UseGuards,
   UploadedFiles,
   UseInterceptors,
@@ -148,8 +149,8 @@ export class EventController {
   @ApiOperation({ summary: 'Delete event' })
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.eventService.remove(id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.eventService.remove(id, req.user.userId);
   }
 
   @ApiOperation({ summary: 'Find users in waitlist' })

@@ -3,6 +3,7 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import * as sharp from 'sharp';
 
@@ -502,6 +503,8 @@ export class EventService {
     });
   }
   private handleformatUsersWaitlist(data: any[]) {
+    const positionsByGroup = new Map<string, number>();
+
     return data.map((item) => {
       const rr = item.rolesRegistration;
       const role = {
@@ -510,8 +513,17 @@ export class EventService {
         price: rr?.price,
       };
       const group = rr?.group;
+      const groupId = group?.id ?? 'without-group';
+      const position = (positionsByGroup.get(groupId) ?? 0) + 1;
+
+      positionsByGroup.set(groupId, position);
+
       return {
         ...item.user,
+        waitlistId: item.id,
+        waitlistCreatedAt: item.createdAt,
+        waitlistPosition: position,
+        roleRegistrationId: item.roleRegistrationId,
         groupsRegistration: [
           {
             id: group?.id,
@@ -1048,89 +1060,168 @@ export class EventService {
     idEvent: string,
     roleRegistrationId: string,
   ) {
-    try {
-      const userExists = await this.prisma.user.findUnique({
-        where: {
-          id: idUser,
-        },
-      });
+    const [userExists, eventExists, registrationExists] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: idUser },
+        select: { id: true },
+      }),
+      this.prisma.event.findUnique({
+        where: { id: idEvent },
+        select: { id: true },
+      }),
+      this.prisma.eventOnUsersRolesRegistration.findFirst({
+        where: { userId: idUser, eventId: idEvent, roleRegistrationId },
+        select: { userId: true },
+      }),
+    ]);
 
-      if (!userExists) {
-        throw new NotFoundException('User does not exists!');
-      }
+    if (!userExists) {
+      throw new NotFoundException('User does not exist!');
+    }
+    if (!eventExists) {
+      throw new NotFoundException('Event does not exist!');
+    }
+    if (!registrationExists) {
+      throw new NotFoundException('Registration does not exist!');
+    }
 
-      const eventExists = await this.prisma.event.findUnique({
-        where: {
-          id: idEvent,
-        },
-      });
-
-      if (!eventExists) {
-        throw new NotFoundException('Event does not exists!');
-      }
-      const registrationExists =
-        await this.prisma.eventOnUsersRolesRegistration.findFirst({
-          where: {
-            userId: idUser,
-            eventId: idEvent,
-            roleRegistrationId,
+    const deleted = await this.prisma.$transaction(
+      async (tx) => {
+        const paymentCheckouts = await tx.paymentCheckout.deleteMany({
+          where: { payment: { userId: idUser, eventId: idEvent } },
+        });
+        const payments = await tx.payment.deleteMany({
+          where: { userId: idUser, eventId: idEvent },
+        });
+        const bedroomUsers = await tx.bedroomsOnUsers.deleteMany({
+          where: { userId: idUser, bedrooms: { eventId: idEvent } },
+        });
+        const teamUsers = await tx.teamOnUsers.deleteMany({
+          where: { userId: idUser, team: { eventId: idEvent } },
+        });
+        const waitlist = await tx.waitlist.deleteMany({
+          where: { userId: idUser, eventId: idEvent },
+        });
+        const registrations = await tx.eventOnUsersRolesRegistration.deleteMany(
+          {
+            where: { userId: idUser, eventId: idEvent },
           },
+        );
+        const eventUsers = await tx.eventOnUsers.deleteMany({
+          where: { userId: idUser, eventId: idEvent },
         });
 
-      if (!registrationExists) {
-        throw new NotFoundException('Registration does not exists!');
-      }
+        return {
+          paymentCheckouts: paymentCheckouts.count,
+          payments: payments.count,
+          bedroomUsers: bedroomUsers.count,
+          teamUsers: teamUsers.count,
+          waitlist: waitlist.count,
+          registrations: registrations.count,
+          eventUsers: eventUsers.count,
+        };
+      },
+      { maxWait: 10000, timeout: 60000 },
+    );
 
-      await this.prisma.eventOnUsersRolesRegistration.deleteMany({
-        where: {
-          userId: idUser,
-          eventId: idEvent,
-          roleRegistrationId,
-        },
-      });
-      //verifica se onevents tem agum role registrado para o usuario, se não tiver, remove a relação do usuario com o evento
-      await this.prisma.eventOnUsers.deleteMany({
-        where: {
-          userId: idUser,
-          eventId: idEvent,
-          rolesRegistration: { none: {} },
-        },
-      });
-      return { message: 'User removed from event successfully' };
-    } catch (error) {
-      throw new InternalServerErrorException(error.message);
-    }
+    return { message: 'User removed from event successfully', deleted };
   }
 
-  async remove(id: string) {
-    try {
-      const eventExists = await this.prisma.event.findUnique({
-        where: {
-          id,
-        },
-      });
+  async remove(id: string, requesterId: string) {
+    const requester = await this.prisma.user.findUnique({
+      where: { id: requesterId },
+      select: { role: true },
+    });
 
-      if (!eventExists) {
-        throw new NotFoundException('Event does not exists!');
-      }
-      //verificar se há usuários inscritos
-      const userCount = await this.prisma.eventOnUsers.count({
-        where: {
-          eventId: id,
-        },
-      });
-
-      if (userCount > 0) {
-        throw new BadRequestException(
-          'Cannot delete event with registered users!',
-        );
-      }
-
-      await this.prisma.event.delete({ where: { id } });
-      return { message: `Event ${id} deleted successfully` };
-    } catch (error) {
-      throw new InternalServerErrorException(error.message);
+    if (!requester) {
+      throw new NotFoundException('Usuário não encontrado');
     }
+
+    if (requester.role !== 1) {
+      throw new UnauthorizedException('Usuário não é administrador');
+    }
+
+    const event = await this.prisma.event.findUnique({
+      where: { id },
+      select: { id: true, name: true },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event does not exist!');
+    }
+
+    const userCount = await this.prisma.eventOnUsers.count({
+      where: { eventId: id },
+    });
+
+    if (userCount > 0) {
+      throw new BadRequestException(
+        'Cannot delete event with registered users!',
+      );
+    }
+
+    const deleted = await this.prisma.$transaction(
+      async (tx) => {
+        const paymentCheckouts = await tx.paymentCheckout.deleteMany({
+          where: { payment: { eventId: id } },
+        });
+        const payments = await tx.payment.deleteMany({
+          where: { eventId: id },
+        });
+        const bedroomUsers = await tx.bedroomsOnUsers.deleteMany({
+          where: { bedrooms: { eventId: id } },
+        });
+        const teamUsers = await tx.teamOnUsers.deleteMany({
+          where: { team: { eventId: id } },
+        });
+        const waitlist = await tx.waitlist.deleteMany({
+          where: { eventId: id },
+        });
+        const registrations = await tx.eventOnUsersRolesRegistration.deleteMany(
+          {
+            where: { eventId: id },
+          },
+        );
+        const eventUsers = await tx.eventOnUsers.deleteMany({
+          where: { eventId: id },
+        });
+        const roles = await tx.rolesRegistration.deleteMany({
+          where: { group: { eventId: id } },
+        });
+        const groups = await tx.groupRoles.deleteMany({
+          where: { eventId: id },
+        });
+        const bedrooms = await tx.bedrooms.deleteMany({
+          where: { eventId: id },
+        });
+        const teams = await tx.team.deleteMany({
+          where: { eventId: id },
+        });
+
+        await tx.event.delete({ where: { id } });
+
+        return {
+          paymentCheckouts: paymentCheckouts.count,
+          payments: payments.count,
+          bedroomUsers: bedroomUsers.count,
+          teamUsers: teamUsers.count,
+          waitlist: waitlist.count,
+          registrations: registrations.count,
+          eventUsers: eventUsers.count,
+          roles: roles.count,
+          groups: groups.count,
+          bedrooms: bedrooms.count,
+          teams: teams.count,
+        };
+      },
+      { maxWait: 10000, timeout: 60000 },
+    );
+
+    return {
+      message: `Event ${event.name} deleted successfully`,
+      eventId: event.id,
+      deleted,
+    };
   }
 
   async findUsers(eventId: string) {
@@ -1186,7 +1277,7 @@ export class EventService {
         where: {
           eventId: idEvent,
         },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         include: {
           user: {
             select: {
