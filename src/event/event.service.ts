@@ -496,6 +496,8 @@ export class EventService {
 
       return {
         ...item.user,
+        /** 🔹 Data/hora da inscrição no evento (não confundir com createdAt da conta) */
+        registeredAt: item.createdAt,
         groupsRegistration: Array.from(groupsMap.values()),
         bedrooms,
         teams,
