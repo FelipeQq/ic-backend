@@ -3,9 +3,9 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreatePaymentDto } from './dto/create-payment.dto';
 import {
   CheckoutStatus,
   PaymentMethod,
@@ -48,6 +48,12 @@ export class PaymentService {
   }
 
   async createCheckout(dto: CreatePaymentCheckoutDto) {
+    if (process.env.PAGBANK_PAYMENT_ENABLED !== 'true') {
+      throw new ServiceUnavailableException(
+        'Pagamentos online estão temporariamente indisponíveis. Contate o suporte!',
+      );
+    }
+
     const { userId, eventId, roleRegistrationId } = dto;
 
     try {
@@ -445,7 +451,7 @@ export class PaymentService {
         'Não é possível alterar um pagamento já pago, exceto para reembolso',
       );
     }
-    let eventId = payment.eventUserRole?.eventOnUsers?.event?.id;
+    const eventId = payment.eventUserRole?.eventOnUsers?.event?.id;
     let url: string | undefined;
     if (payload.receiptFile) {
       url = (
