@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { BedroomsService } from './bedrooms.service';
-import { BedroomsController } from './bedrooms.controller';
+// sistema migrado para https://eventos.iccidadeverde.com/ — rotas desativadas
+// import { BedroomsController } from './bedrooms.controller';
 
 @Module({
-  controllers: [BedroomsController],
+  // controllers: [BedroomsController],
   providers: [BedroomsService],
 })
 export class BedroomsModule {}
