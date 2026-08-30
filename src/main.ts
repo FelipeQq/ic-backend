@@ -1,15 +1,19 @@
 import * as dotenv from 'dotenv';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+// sistema migrado para https://eventos.iccidadeverde.com/: o Swagger era o
+// único endpoint HTTP que sobrava depois de desativar os controllers, e trazia
+// usuário/senha padrão no código. Desmontado junto com a proteção dele.
+// import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { initializeFirebase } from './firebase.config';
-import { json, NextFunction, Request, Response, urlencoded } from 'express';
-import { timingSafeEqual } from 'crypto';
+import { json, urlencoded } from 'express';
+// import { timingSafeEqual } from 'crypto';
 
 dotenv.config();
 initializeFirebase();
 
+/*
 const safeCompare = (value: string, expected: string): boolean => {
   const valueBuffer = Buffer.from(value) as any;
   const expectedBuffer = Buffer.from(expected) as any;
@@ -58,12 +62,13 @@ const protectSwagger = (req: Request, res: Response, next: NextFunction) => {
   res.setHeader('WWW-Authenticate', 'Basic realm="Swagger documentation"');
   return res.status(401).send('Authentication required');
 };
+*/
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ extended: true, limit: '50mb' }));
-  app.use(protectSwagger);
+  // app.use(protectSwagger);
   const port = process.env.PORT;
   app.enableCors({
     origin: true,
@@ -71,6 +76,7 @@ async function bootstrap() {
     credentials: true,
   });
 
+  /*
   const config = new DocumentBuilder()
     .setTitle('IC')
     .setDescription('The IC API description')
@@ -80,6 +86,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
+  */
 
   app.useGlobalPipes(
     new ValidationPipe({

@@ -10,7 +10,9 @@ import { AuthModule } from './auth/auth.module';
 import { PagbankModule } from './gateways/pagbank/pagbank.module';
 import { PaymentModule } from './payment/payment.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
-import { CronModule } from './cron/cron.module';
+// sistema migrado: o cron reconciliava pagamentos escrevendo no banco a cada
+// 3 horas. Com o módulo fora, o ScheduleModule nem é carregado.
+// import { CronModule } from './cron/cron.module';
 import { CheckinModule } from './checkin/checkin.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { RequestContextInterceptor } from './middleware/request-context.middleware';
@@ -26,7 +28,7 @@ import { RequestContextInterceptor } from './middleware/request-context.middlewa
     PagbankModule,
     PaymentModule,
     WebhooksModule,
-    CronModule,
+    // CronModule,
     CheckinModule,
   ],
   // controllers: [AuthController],
